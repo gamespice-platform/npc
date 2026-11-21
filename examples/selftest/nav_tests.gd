@@ -4,7 +4,7 @@ extends "res://examples/selftest/definition_tests.gd"
 func _test_nav_data() -> void:
 	_section("navigation data")
 
-	var nav := DotNpcNavData.new()
+	var nav := GSNpcNavData.new()
 	_check(not nav.validate().ok, "empty nav data is refused")
 
 	nav.map_id = &"test"
@@ -17,40 +17,40 @@ func _test_nav_data() -> void:
 		"nothing could then tell whether it was stale"
 	)
 
-	nav.source_digest = DotNpcNavData.digest_of([1.0, 2.0])
+	nav.source_digest = GSNpcNavData.digest_of([1.0, 2.0])
 	_check(nav.validate().ok, "with a digest it validates")
-	_check(nav.matches(DotNpcNavData.digest_of([1.0, 2.0])), "and matches its source")
+	_check(nav.matches(GSNpcNavData.digest_of([1.0, 2.0])), "and matches its source")
 	_check(
-		not nav.matches(DotNpcNavData.digest_of([1.0, 2.01])),
+		not nav.matches(GSNpcNavData.digest_of([1.0, 2.01])),
 		"and stops matching when a constant moves by a centimetre",
 		"var_to_str rather than str, or the float would round to the same string"
 	)
 
 	var cache := nav.to_cache_bytes()
-	_check(DotNpcNavData.from_cache_bytes(cache) != null, "a current-version cache loads")
+	_check(GSNpcNavData.from_cache_bytes(cache) != null, "a current-version cache loads")
 	var old := bytes_to_var(cache.slice(4).decompress(cache.decode_u32(0), FileAccess.COMPRESSION_GZIP)) as Dictionary
-	old["format"] = DotNpcNavData.FORMAT_VERSION - 1
+	old["format"] = GSNpcNavData.FORMAT_VERSION - 1
 	var raw := var_to_bytes(old)
 	var old_bytes := PackedByteArray([0, 0, 0, 0]) + raw.compress(FileAccess.COMPRESSION_GZIP)
 	old_bytes.encode_u32(0, raw.size())
-	_check(DotNpcNavData.from_cache_bytes(old_bytes) == null, "a cache from an older version is rejected, so it is rebuilt")
+	_check(GSNpcNavData.from_cache_bytes(old_bytes) == null, "a cache from an older version is rejected, so it is rebuilt")
 
 	_check(not nav.connect_points(0, 9).ok, "an edge off the end is refused")
 
-	var round_tripped := DotNpcNavData.from_dictionary(nav.to_dictionary())
+	var round_tripped := GSNpcNavData.from_dictionary(nav.to_dictionary())
 	_check(
 		round_tripped.point_count() == 2 and round_tripped.edge_count() == 1,
 		"and nav data survives a round trip"
 	)
 
 	# Two equal ways round a block; a place marked bad is gone round by everyone until it expires.
-	var diamond := DotNpcNavData.new()
+	var diamond := GSNpcNavData.new()
 	diamond.map_id = &"diamond"
 	diamond.source_digest = "d"
 	for p: Vector3 in [Vector3(0, 0, 0), Vector3(4, 0, 3), Vector3(4, 0, -3), Vector3(8, 0, 0)]:
 		var _i := diamond.add_point(p)
 	var _e := [diamond.connect_points(0, 1), diamond.connect_points(1, 3), diamond.connect_points(0, 2), diamond.connect_points(2, 3)]
-	var dg := DotNpcNavGraph.new(diamond)
+	var dg := GSNpcNavGraph.new(diamond)
 	var _warm := dg.find_path(Vector3.ZERO, Vector3(8, 0, 0), 1.0)
 	var bad_at := dg.mark_bad(Vector3(4, 0, 3), 10.0, 6.0, 0.5)
 	var around := dg.find_path(Vector3.ZERO, Vector3(8, 0, 0), 1.0)
@@ -61,8 +61,8 @@ func _test_nav_data() -> void:
 	# Pruning: a point a callback calls blocked goes with its edges, an edge it calls blocked goes alone.
 	var dropped := diamond.prune(func(p: Vector3) -> bool: return p == Vector3(4, 0, 3), func(a: Vector3, b: Vector3) -> bool: return a == Vector3(0, 0, 0) and b == Vector3(4, 0, -3))
 	_check(dropped == Vector2i(1, 3) and diamond.point_count() == 3 and diamond.edge_count() == 1, "pruning drops a blocked point, its edges and a blocked edge")
-	_check(diamond.nearest_point(Vector3(8, 0, 0), 0.5) == 2 and DotNpcNavGraph.new(diamond).find_path(Vector3(4, 0, -3), Vector3(8, 0, 0), 1.0).size() >= 2, "and the rest is indexed and walkable")
-	var cut_graph := DotNpcNavGraph.new(diamond)
+	_check(diamond.nearest_point(Vector3(8, 0, 0), 0.5) == 2 and GSNpcNavGraph.new(diamond).find_path(Vector3(4, 0, -3), Vector3(8, 0, 0), 1.0).size() >= 2, "and the rest is indexed and walkable")
+	var cut_graph := GSNpcNavGraph.new(diamond)
 	_check(diamond.cut_edges().size() == 6, "pruning remembers the three edges it cut", "%d" % diamond.cut_edges().size())
 	_check(cut_graph._crosses_cut(Vector3(0, 0, -3), Vector3(4, 0, 0)) and not cut_graph._crosses_cut(Vector3(5, 0, -3), Vector3(8, 0, -1)), "and a leg across one is refused while a leg elsewhere is not")
 	_nav_prune_slack()
@@ -72,7 +72,7 @@ func _test_nav_data() -> void:
 func _nav_prune_slack() -> void:
 	# A point on a post slides off it instead of splitting the line.
 	var line := _line_nav([Vector3(0, 0, 0), Vector3(1, 0, 0), Vector3(2, 0, 0)], [0, 1, 1, 2])
-	var post := DotNpcNavPrune.new()
+	var post := GSNpcNavPrune.new()
 	post.point_blocked = func(p: Vector3) -> bool: return p.distance_to(Vector3(1, 0, 0)) < 0.08
 	post.nudge = 0.2
 	_check(post.apply(line) == Vector2i.ZERO and post.nudged == 1 and line.edge_count() == 2, "a blocked point slides clear and keeps its edges", "%d moved" % post.nudged)
@@ -86,37 +86,37 @@ func _nav_prune_slack() -> void:
 				return true
 		return false
 	var ledge := _line_nav([Vector3(0, 3, 0), Vector3(0, 0, 2)], [0, 1])
-	var straight := DotNpcNavPrune.new()
+	var straight := GSNpcNavPrune.new()
 	straight.edge_blocked = slab
 	_check(straight.apply(ledge) == Vector2i(0, 1), "a drop whose straight line cuts its ledge is cut without a climb rule")
 	ledge = _line_nav([Vector3(0, 3, 0), Vector3(0, 0, 2)], [0, 1])
-	var falls := DotNpcNavPrune.new()
+	var falls := GSNpcNavPrune.new()
 	falls.edge_blocked = slab
 	falls.climb = 1.0
 	_check(falls.apply(ledge) == Vector2i.ZERO and ledge.edge_count() == 1, "and kept when the body can step off and fall beside it")
-	_check(DotNpcNavPrune.level_change_blocked(func(_a: Vector3, _b: Vector3) -> bool: return true, Callable(), Vector3(0, 3, 0), Vector3(0, 0, 0.5), 1.0), "a drop with no clear column stays cut")
+	_check(GSNpcNavPrune.level_change_blocked(func(_a: Vector3, _b: Vector3) -> bool: return true, Callable(), Vector3(0, 3, 0), Vector3(0, 0, 0.5), 1.0), "a drop with no clear column stays cut")
 
 	# Two pieces joined only through a gap the strict body does not fit; a loose dead end off one piece is not kept.
 	var gap := _line_nav([Vector3(0, 0, 0), Vector3(1, 0, 0), Vector3(2, 0, 0), Vector3(3, 0, 0), Vector3(4, 0, 0), Vector3(0, 0, 1)], [0, 1, 1, 2, 2, 3, 3, 4, 0, 5])
-	var squeeze := DotNpcNavPrune.new()
+	var squeeze := GSNpcNavPrune.new()
 	squeeze.point_blocked = func(p: Vector3) -> bool: return p.x == 2.0 or p.z == 1.0
 	squeeze.loose_point_blocked = func(_p: Vector3) -> bool: return false
 	var squeezed := squeeze.apply(gap)
 	_check(squeezed == Vector2i(1, 1) and squeeze.joined_points == 1 and squeeze.joined_edges == 2, "a loose gap is kept where it joins two pieces, a loose dead end is not", "%s, %d points" % [squeezed, squeeze.joined_points])
-	_check(DotNpcNavGraph.new(gap).find_path(Vector3(0, 0, 0), Vector3(4, 0, 0), 0.5).size() >= 2, "and the line walks through")
+	_check(GSNpcNavGraph.new(gap).find_path(Vector3(0, 0, 0), Vector3(4, 0, 0), 0.5).size() >= 2, "and the line walks through")
 	_check(gap.cut_edges().size() == 2, "the dead end's edge is remembered as cut", "%d" % gap.cut_edges().size())
 
 
 	# Two pieces each holding a required spot, joined only by an edge the test blocks: the edge stays as a bridge. A piece with none is not rejoined.
 	var wall := _line_nav([Vector3(0, 0, 0), Vector3(1, 0, 0), Vector3(2, 0, 0), Vector3(3, 0, 0), Vector3(0, 0, 5), Vector3(1, 0, 5)], [0, 1, 1, 2, 2, 3, 0, 4, 4, 5])
-	var bridge := DotNpcNavPrune.new()
+	var bridge := GSNpcNavPrune.new()
 	bridge.edge_blocked = func(a: Vector3, b: Vector3) -> bool: return (a.x == 1.0 and b.x == 2.0) or (a.z == 5.0 and b.z == 0.0) or (a.z == 0.0 and b.z == 5.0)
 	bridge.required = PackedVector3Array([Vector3(0, 0, 0), Vector3(3, 0, 0)])
 	bridge.apply(wall)
 	_check(bridge.bridged_edges == 1 and wall.point_count() == 6 and wall.edge_count() == 4, "a required piece apart is bridged by the shortest cut edge, a piece with no required spot stays cut", "%d bridged, %d edges" % [bridge.bridged_edges, wall.edge_count()])
 
-func _line_nav(points: Array, edges: Array) -> DotNpcNavData:
-	var nav := DotNpcNavData.new()
+func _line_nav(points: Array, edges: Array) -> GSNpcNavData:
+	var nav := GSNpcNavData.new()
 	nav.map_id = &"prune"
 	nav.source_digest = "p"
 	for p: Vector3 in points:
@@ -129,7 +129,7 @@ func _line_nav(points: Array, edges: Array) -> DotNpcNavData:
 func _test_nav_builder() -> void:
 	_section("navigation builder")
 
-	var builder := DotNpcNavBuilder.new()
+	var builder := GSNpcNavBuilder.new()
 	builder.spacing = 2.0
 	builder.add_floor(AABB(Vector3(-10, 0, -10), Vector3(20, 0, 20)), 0.0)
 	builder.add_obstacle(AABB(Vector3(-1, 0, -10), Vector3(2, 3, 14)))
@@ -144,7 +144,7 @@ func _test_nav_builder() -> void:
 	)
 
 	# A cancelled build has no result, and the same builder then builds again from scratch.
-	var cancelled := DotNpcNavBuilder.new()
+	var cancelled := GSNpcNavBuilder.new()
 	cancelled.spacing = 2.0
 	cancelled.generate_cover = true
 	cancelled.add_floor(AABB(Vector3(-10, 0, -10), Vector3(20, 0, 20)), 0.0)
@@ -158,7 +158,7 @@ func _test_nav_builder() -> void:
 	cancelled.cover_range = 3.0
 	var rebuilt := cancelled.build(&"cancel_map", "digest")
 	_check(rebuilt != null and rebuilt.point_count() > 0 and not cancelled.is_cancelled(), "begin resets the cancel and the same builder builds again")
-	var fresh := DotNpcNavBuilder.new()
+	var fresh := GSNpcNavBuilder.new()
 	fresh.spacing = 2.0
 	fresh.generate_cover = true
 	fresh.clearance = 1.5
@@ -170,13 +170,13 @@ func _test_nav_builder() -> void:
 		"and honours a changed clearance (obstacle cells are rebuilt)"
 	)
 
-	var two_storey := DotNpcNavBuilder.new()
+	var two_storey := GSNpcNavBuilder.new()
 	two_storey.spacing = 2.0
 	two_storey.add_floor(AABB(Vector3(-4, 0, -4), Vector3(8, 0, 8)), 0.0)
 	two_storey.add_floor(AABB(Vector3(-4, 0, -4), Vector3(8, 0, 8)), 6.0)
 
 	var stacked := two_storey.build(&"stacked", "digest")
-	var graph := DotNpcNavGraph.new(stacked)
+	var graph := GSNpcNavGraph.new(stacked)
 
 	_check(
 		graph.find_path(Vector3(0, 0, 0), Vector3(0, 6, 0), 2.0).is_empty(),
@@ -185,7 +185,7 @@ func _test_nav_builder() -> void:
 	)
 
 	two_storey.add_link(Vector3(3, 0, 3), Vector3(3, 6, 3))
-	var linked := DotNpcNavGraph.new(two_storey.build(&"stacked", "digest"))
+	var linked := GSNpcNavGraph.new(two_storey.build(&"stacked", "digest"))
 
 	_check(
 		not linked.find_path(Vector3(0, 0, 0), Vector3(0, 6, 0), 2.0).is_empty(),
@@ -199,31 +199,31 @@ func _test_nav_builder() -> void:
 ## Links, ladders, floors laid from different corners and edge sampling.
 func _nav_builder_links() -> void:
 	# A ladder stands in a wall, away from the grid: a wide reach finds the floor either side, and only at its own height.
-	var shaft := DotNpcNavBuilder.new()
+	var shaft := GSNpcNavBuilder.new()
 	shaft.spacing = 2.0
 	shaft.add_floor(AABB(Vector3(-4, 0, -4), Vector3(8, 0, 8)), 0.0)
 	shaft.add_floor(AABB(Vector3(-4, 0, -4), Vector3(8, 0, 8)), 6.0)
 	shaft.add_link(Vector3(9, 0.1, 0), Vector3(9, 6, 0))
-	var near_only := DotNpcNavGraph.new(shaft.build(&"shaft", "digest"))
+	var near_only := GSNpcNavGraph.new(shaft.build(&"shaft", "digest"))
 	_check(near_only.find_path(Vector3(0, 0, 0), Vector3(0, 6, 0), 2.0).is_empty(), "a link end beyond twice the spacing finds no point")
-	var reach := DotNpcNavBuilder.new()
+	var reach := GSNpcNavBuilder.new()
 	reach.spacing = 2.0
 	reach.add_floor(AABB(Vector3(-4, 0, -4), Vector3(8, 0, 8)), 0.0)
 	reach.add_floor(AABB(Vector3(-4, 0, -4), Vector3(8, 0, 8)), 6.0)
 	reach.add_link(Vector3(7, 3, 0), Vector3(7, 6, 0), 0, 6.0, 1.0)
-	_check(DotNpcNavGraph.new(reach.build(&"reach", "digest")).find_path(Vector3(0, 0, 0), Vector3(0, 6, 0), 2.0).is_empty(),
+	_check(GSNpcNavGraph.new(reach.build(&"reach", "digest")).find_path(Vector3(0, 0, 0), Vector3(0, 6, 0), 2.0).is_empty(),
 		"a link given a reach still takes only points near the height of its end (no floor within 1 m of y 3)")
-	var tall := DotNpcNavBuilder.new()
+	var tall := GSNpcNavBuilder.new()
 	tall.spacing = 2.0
 	tall.add_floor(AABB(Vector3(-4, 0, -4), Vector3(8, 0, 8)), 0.0)
 	tall.add_floor(AABB(Vector3(-4, 0, -4), Vector3(8, 0, 8)), 6.0)
 	tall.add_link(Vector3(7, 0.1, 0), Vector3(7, 6, 0), 0, 6.0, 1.0)
-	_check(not DotNpcNavGraph.new(tall.build(&"tall", "digest")).find_path(Vector3(0, 0, 0), Vector3(0, 6, 0), 2.0).is_empty(),
+	_check(not GSNpcNavGraph.new(tall.build(&"tall", "digest")).find_path(Vector3(0, 0, 0), Vector3(0, 6, 0), 2.0).is_empty(),
 		"and a link given a reach joins the floors from outside the grid")
 
 	# A room, a doorway and a street, each laid from its own corner so their grids are offset by a fraction of
 	# a step. Rounding positions to the grid merged the room's last row with the street's first and split the door.
-	var offset := DotNpcNavBuilder.new()
+	var offset := GSNpcNavBuilder.new()
 	offset.spacing = 1.0
 	offset.clearance = 0.35
 	offset.add_floor(AABB(Vector3(-4.9, 0, -13.9), Vector3(9.8, 0, 7.8)), 0.0)
@@ -232,7 +232,7 @@ func _nav_builder_links() -> void:
 	offset.add_obstacle(AABB(Vector3(-5.2, 0, -6.0), Vector3(4.0, 3, 0.2)))
 	offset.add_obstacle(AABB(Vector3(1.2, 0, -6.0), Vector3(4.0, 3, 0.2)))
 	var street := offset.build(&"offset", "digest")
-	var joined := DotNpcNavGraph.new(street)
+	var joined := GSNpcNavGraph.new(street)
 	_check(not joined.find_path(Vector3(0, 0, -10), Vector3(0, 0, 5), 1.5).is_empty(),
 		"floors laid from different corners still join through a doorway")
 
@@ -244,7 +244,7 @@ func _nav_builder_links() -> void:
 	_check(crowded == 0, "and overlapping floors still do not put two points in one place", "%d pairs" % crowded)
 
 	# Edge sampling: a short diagonal must be sampled, a ramp edge must not hit a lower box.
-	var sampled := DotNpcNavBuilder.new()
+	var sampled := GSNpcNavBuilder.new()
 	sampled.spacing = 1.0
 	sampled.clearance = 0.35
 	sampled.add_obstacle(AABB(Vector3(-58.18, 3.54, 58.48), Vector3(0.3, 0.46, 0.3)))
@@ -272,47 +272,47 @@ func _nav_builder_slopes() -> void:
 		for z in range(0, 4):
 			hillside.append(Vector3(x + 0.5, (x + 0.5) * 0.7, z + 0.5))
 			cliff.append(Vector3(x + 0.5, (x + 0.5) * 2.0, z + 10.5))
-	var hill := DotNpcNavBuilder.new()
+	var hill := GSNpcNavBuilder.new()
 	hill.spacing = 1.0
 	hill.add_floor(AABB(Vector3(-4, 0, 0), Vector3(4, 0, 4)), 0.35)
 	hill.add_points(hillside, 1.0)
 	hill.add_points(cliff, 1.0)
-	var hill_graph := DotNpcNavGraph.new(hill.build(&"hill", "digest"))
+	var hill_graph := GSNpcNavGraph.new(hill.build(&"hill", "digest"))
 	_check(not hill_graph.find_path(Vector3(-3.5, 0.35, 2), Vector3(9.5, 6.65, 2), 1.0).is_empty(),
 		"slope points climb a hillside and join the floor at its foot")
 	_check(hill_graph.find_path(Vector3(0.5, 1.0, 10.5), Vector3(5.5, 11.0, 10.5), 1.0).is_empty(),
 		"and a slope steeper than their limit stays apart")
-	var flat := DotNpcNavBuilder.new()
+	var flat := GSNpcNavBuilder.new()
 	flat.spacing = 1.0
 	for p in hillside:
 		flat.add_floor(AABB(Vector3(p.x - 0.5, 0, p.z - 0.5), Vector3(1, 0, 1)), p.y)
-	_check(DotNpcNavGraph.new(flat.build(&"steps", "digest")).find_path(Vector3(0.5, 0.35, 2), Vector3(9.5, 6.65, 2), 1.0).is_empty(),
+	_check(GSNpcNavGraph.new(flat.build(&"steps", "digest")).find_path(Vector3(0.5, 0.35, 2), Vector3(9.5, 6.65, 2), 1.0).is_empty(),
 		"while the same hill as floors is a step too far per point")
 
 	# Two rooms whose floors stop 1.5 m apart: islands until bridge_gap joins them, and a wall between them still holds.
 	var bridge_goal := Vector3(3.5, 0, 0.5)
 	for case in [[0.0, false, false], [2.5, false, true], [2.5, true, false]]:
-		var rooms := DotNpcNavBuilder.new()
+		var rooms := GSNpcNavBuilder.new()
 		rooms.spacing = 1.0
 		rooms.bridge_gap = case[0]
 		rooms.add_floor(AABB(Vector3(-3, 0, 0), Vector3(3, 0, 3)), 0.0)
 		rooms.add_floor(AABB(Vector3(1.5, 0, 0), Vector3(3, 0, 3)), 0.0)
 		if case[1]:
 			rooms.add_obstacle(AABB(Vector3(0.6, 0, -1), Vector3(0.2, 3, 6)))
-		var rooms_graph := DotNpcNavGraph.new(rooms.build(&"rooms", "digest"))
+		var rooms_graph := GSNpcNavGraph.new(rooms.build(&"rooms", "digest"))
 		_check(rooms_graph.find_path(Vector3(-2.5, 0, 0.5), bridge_goal, 1.0).is_empty() != case[2],
 			"bridge_gap %s%s: rooms 1.5 m apart are %s" % [case[0], " with a wall between" if case[1] else "", "joined" if case[2] else "separate"])
 
 	# A walkway cut into 0.4 m strips holds no grid point unless centre_narrow_floors puts one in the middle of each.
 	for centred in [false, true]:
-		var strips := DotNpcNavBuilder.new()
+		var strips := GSNpcNavBuilder.new()
 		strips.spacing = 1.0
 		strips.centre_narrow_floors = centred
 		for k in 6:
 			strips.add_floor(AABB(Vector3(0, 0, k * 0.4), Vector3(3, 0, 0.4)), 0.0)
 		strips.add_floor(AABB(Vector3(0, 0, -3), Vector3(3, 0, 3)), 0.0)
 		strips.add_floor(AABB(Vector3(0, 0, 2.4), Vector3(3, 0, 3)), 0.0)
-		_check(DotNpcNavGraph.new(strips.build(&"strips", "digest")).find_path(Vector3(1.5, 0, -2.5), Vector3(1.5, 0, 4.9), 1.0).is_empty() != centred,
+		_check(GSNpcNavGraph.new(strips.build(&"strips", "digest")).find_path(Vector3(1.5, 0, -2.5), Vector3(1.5, 0, 4.9), 1.0).is_empty() != centred,
 			"centre_narrow_floors %s: rooms joined by a walkway of 0.4 m strips are %s" % [centred, "joined" if centred else "separate"])
 
 
@@ -320,12 +320,12 @@ func _test_nav_graph() -> void:
 	_section("navigation graph")
 
 	# A corridor bent round a wall: the straight line is blocked and the path is not.
-	var builder := DotNpcNavBuilder.new()
+	var builder := GSNpcNavBuilder.new()
 	builder.spacing = 2.0
 	builder.add_floor(AABB(Vector3(-12, 0, -12), Vector3(24, 0, 24)), 0.0)
 	builder.add_obstacle(AABB(Vector3(-2, 0, -12), Vector3(4, 4, 20)))
 
-	var graph := DotNpcNavGraph.new(builder.build(&"bent", "digest"))
+	var graph := GSNpcNavGraph.new(builder.build(&"bent", "digest"))
 	var from := Vector3(-8, 0, 0)
 	var to := Vector3(8, 0, 0)
 	var path := graph.find_path(from, to, 3.0)
@@ -392,8 +392,8 @@ func _path_length(path: PackedVector3Array) -> float:
 
 
 ## Two floors split by a wall, joined by one link through it; [param round_about] lays a third floor that joins them anyway.
-func _walled_link(round_about: bool) -> DotNpcNavBuilder:
-	var b := DotNpcNavBuilder.new()
+func _walled_link(round_about: bool) -> GSNpcNavBuilder:
+	var b := GSNpcNavBuilder.new()
 	b.spacing = 1.0
 	b.links_check_obstacles = true
 	b.add_floor(AABB(Vector3(-6, 0, -3), Vector3(5, 0, 7)), 0.0)

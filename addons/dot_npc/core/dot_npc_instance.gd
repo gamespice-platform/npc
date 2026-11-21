@@ -1,11 +1,11 @@
-class_name DotNpcInstance
+class_name GSNpcInstance
 extends RefCounted
 
 ## One NPC in the world: its definition, its node, its health and what it is chasing.
 ## State lives here, not on the node: it must outlive the node, and the tick an NPC dies
 ## on is the tick its node goes away.
 
-var def: DotNpcDef = null
+var def: GSNpcDef = null
 
 ## The node in the world. May be freed; check with [method is_alive].
 ## Typed [Node], not [Node3D], so a 2D game reuses the budget and senses; a 2D world is the XZ plane, y zero.
@@ -18,7 +18,7 @@ var node: Node = null
 var instance_id: int = 0
 
 ## This NPC's own random seed: the same number for the same spawn in every run.
-## Set by [DotNpcSpawner] before the brain is bound. Always above 1, because GameSpice NPC AI reads 0 or 1
+## Set by [GSNpcSpawner] before the brain is bound. Always above 1, because GameSpice NPC AI reads 0 or 1
 ## as "still the preset's". Zero means built by hand. Not [member instance_id], which moves with unrelated objects.
 var seed: int = 0
 
@@ -35,15 +35,15 @@ var alive: bool = true
 
 var health: float = 0.0
 
-## What it has committed to, or empty. See [DotNpcSenses] for why it commits.
+## What it has committed to, or empty. See [GSNpcSenses] for why it commits.
 var target_id: StringName = &""
 
 ## Simulated seconds when [member target_id] was last actually perceived.
-## Not when acquired: the commitment grace ([member DotNpcSenses.commitment_grace]) runs from the last sighting.
+## Not when acquired: the commitment grace ([member GSNpcSenses.commitment_grace]) runs from the last sighting.
 var target_seen_at: float = 0.0
 
 ## Simulated seconds when anything last perceived it or it last had a target.
-## What [member DotNpcLimits.reclaim_grace] is measured from. Moves every pass the target is
+## What [member GSNpcLimits.reclaim_grace] is measured from. Moves every pass the target is
 ## perceived; not a reaction timer, see [member target_since].
 var engaged_at: float = 0.0
 
@@ -60,7 +60,7 @@ var sight_scale: float = 1.0
 ## A flash sets it via [method blind_for]; the default sees as the kind says.
 var blind_until: float = -1.0
 
-## The last perception pass found nothing within reach (see [member DotNpcLimits.sense_quiet_mult]).
+## The last perception pass found nothing within reach (see [member GSNpcLimits.sense_quiet_mult]).
 var sense_quiet: bool = false
 
 ## The brain, if the definition named one. Never a `class_name`.
@@ -111,7 +111,7 @@ func position_2d() -> Vector2:
 
 
 ## Whether this NPC lives in a 2D world.
-## Asked, not inferred: a [DotNpcDef] says nothing about dimension.
+## Asked, not inferred: a [GSNpcDef] says nothing about dimension.
 func is_2d() -> bool:
 	return node is Node2D
 
@@ -156,7 +156,7 @@ func describe() -> Dictionary:
 
 
 func _to_string() -> String:
-	return "DotNpcInstance(%s hp %.0f)" % [
+	return "GSNpcInstance(%s hp %.0f)" % [
 		String(def.id) if def != null else "?", health
 	]
 

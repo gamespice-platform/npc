@@ -1,9 +1,9 @@
-class_name DotNpcGore
+class_name GSNpcGore
 extends RefCounted
 
 ## One process-wide dial (`gore_level`) plus the gib cap for how much dismemberment is shown and allowed.
 ## Static on purpose: gore is presentation policy and a listen server and its client share a process.
-## Level 0 makes every limb call a no-op. Read by [DotNpcLimbs] (server) and [DotNpcGibs] (drawn).
+## Level 0 makes every limb call a no-op. Read by [GSNpcLimbs] (server) and [GSNpcGibs] (drawn).
 
 const OFF := 0
 ## Limbs come off as clean stumps: no flying gib, no spray, no drip.

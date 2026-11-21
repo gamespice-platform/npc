@@ -1,7 +1,7 @@
-class_name DotNpcNavPrune
+class_name GSNpcNavPrune
 extends RefCounted
 
-## [method DotNpcNavData.prune] with the slack a physics test needs to keep a map joined: a blocked point slides
+## [method GSNpcNavData.prune] with the slack a physics test needs to keep a map joined: a blocked point slides
 ## clear, a level change may fall straight down a column beside its line, and a looser body test may join
 ## pieces the strict test split. Assign the Callables, then [method apply]. Main thread when they query physics.
 
@@ -43,8 +43,8 @@ enum { _DROP, _STRICT, _LOOSE }
 
 
 ## Prunes [param nav] in place and compacts it. Returns (points dropped, edges dropped), as
-## [method DotNpcNavData.prune] does.
-func apply(nav: DotNpcNavData) -> Vector2i:
+## [method GSNpcNavData.prune] does.
+func apply(nav: GSNpcNavData) -> Vector2i:
 	nav.normalise_arrays()
 	nudged = 0
 	joined_points = 0
@@ -210,7 +210,7 @@ func _joining(count: int, state: PackedInt32Array, strict_edges: PackedInt32Arra
 
 ## Cut edges, shortest first, that join two pieces each holding a required spot (never a piece with none: that would
 ## put the junk the prune cut back).
-func _bridges(nav: DotNpcNavData, state: PackedInt32Array, moved: PackedVector3Array, kept_edges: PackedInt32Array) -> PackedInt32Array:
+func _bridges(nav: GSNpcNavData, state: PackedInt32Array, moved: PackedVector3Array, kept_edges: PackedInt32Array) -> PackedInt32Array:
 	var out := PackedInt32Array()
 	if required.is_empty():
 		return out
@@ -261,7 +261,7 @@ func _bridges(nav: DotNpcNavData, state: PackedInt32Array, moved: PackedVector3A
 	return out
 
 
-func _compact(nav: DotNpcNavData, state: PackedInt32Array, moved: PackedVector3Array, kept_edges: PackedInt32Array) -> Vector2i:
+func _compact(nav: GSNpcNavData, state: PackedInt32Array, moved: PackedVector3Array, kept_edges: PackedInt32Array) -> Vector2i:
 	var remap := PackedInt32Array()
 	remap.resize(nav.points.size())
 	var points := PackedVector3Array()

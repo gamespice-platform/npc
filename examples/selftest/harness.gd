@@ -37,10 +37,10 @@ func _check(ok: bool, what: String, detail: String = "") -> void:
 		print("  FAIL  %s" % line)
 
 
-func _catalogue() -> DotNpcCatalogue:
-	var cat := DotNpcCatalogue.new()
+func _catalogue() -> GSNpcCatalogue:
+	var cat := GSNpcCatalogue.new()
 
-	var walker := DotNpcDef.make(&"walker", BODY)
+	var walker := GSNpcDef.make(&"walker", BODY)
 	walker.brain_script_path = BRAIN
 	walker.category = &"zombie"
 	walker.max_health = 100.0
@@ -50,7 +50,7 @@ func _catalogue() -> DotNpcCatalogue:
 	walker.meta = {"speed": 4.0}
 	cat.add(walker)
 
-	var brute := DotNpcDef.make(&"brute", BODY)
+	var brute := GSNpcDef.make(&"brute", BODY)
 	brute.brain_script_path = BRAIN
 	brute.category = &"zombie"
 	brute.cost = 8
@@ -58,7 +58,7 @@ func _catalogue() -> DotNpcCatalogue:
 	brute.require_line_of_sight = false
 	cat.add(brute)
 
-	var critter := DotNpcDef.make(&"critter", BODY)
+	var critter := GSNpcDef.make(&"critter", BODY)
 	critter.category = &"wildlife"
 	critter.faction = &"neutral"
 	critter.cost = 1
@@ -66,9 +66,9 @@ func _catalogue() -> DotNpcCatalogue:
 	critter.require_line_of_sight = false
 	cat.add(critter)
 
-	# A 2D NPC in the same catalogue as the 3D ones: a [DotNpcDef] says nothing about dimension, so the
+	# A 2D NPC in the same catalogue as the 3D ones: a [GSNpcDef] says nothing about dimension, so the
 	# spawner has to pick the right entry point rather than infer one.
-	var swarmer := DotNpcDef.make(&"swarmer", BODY_2D)
+	var swarmer := GSNpcDef.make(&"swarmer", BODY_2D)
 	swarmer.brain_script_path = BRAIN
 	swarmer.category = &"swarm"
 	swarmer.max_health = 40.0
@@ -79,7 +79,7 @@ func _catalogue() -> DotNpcCatalogue:
 	swarmer.meta = {"speed": 90.0}
 	cat.add(swarmer)
 
-	var broken := DotNpcDef.make(&"broken", BODY)
+	var broken := GSNpcDef.make(&"broken", BODY)
 	broken.brain_script_path = "res://fixtures/not_a_brain.gd"
 	broken.require_line_of_sight = false
 	cat.add(broken)
@@ -87,8 +87,8 @@ func _catalogue() -> DotNpcCatalogue:
 	return cat
 
 
-func _spawner(limits: DotNpcLimits = null) -> DotNpcSpawner:
-	var spawner := DotNpcSpawner.new()
+func _spawner(limits: GSNpcLimits = null) -> GSNpcSpawner:
+	var spawner := GSNpcSpawner.new()
 	spawner.catalogue = _catalogue()
 	spawner.limits = limits if limits != null else _limits()
 	spawner.authoritative = true
@@ -98,8 +98,8 @@ func _spawner(limits: DotNpcLimits = null) -> DotNpcSpawner:
 
 ## Limits with the rate limiter off, because almost every test spawns several NPCs in
 ## one tick and would otherwise be measuring the cooldown rather than what it is about.
-func _limits() -> DotNpcLimits:
-	var limits := DotNpcLimits.new()
+func _limits() -> GSNpcLimits:
+	var limits := GSNpcLimits.new()
 	limits.spawn_interval = 0.0
 	limits.require_navigable_spawn = false
 	return limits
@@ -107,18 +107,18 @@ func _limits() -> DotNpcLimits:
 
 func _candidate(
 	id: StringName, at: Vector3, faction: StringName = &"player", loudness: float = 0.0
-) -> DotNpcSenses.Candidate:
-	return DotNpcSenses.Candidate.new(id, at, faction, loudness)
+) -> GSNpcSenses.Candidate:
+	return GSNpcSenses.Candidate.new(id, at, faction, loudness)
 
 
 ## An NPC at the origin, facing -Z, with no spawner behind it.
 ## Built by hand so the perception tests are about perception, not whether a scene loaded.
-func _loose_npc(def: DotNpcDef, at: Vector3 = Vector3.ZERO) -> DotNpcInstance:
+func _loose_npc(def: GSNpcDef, at: Vector3 = Vector3.ZERO) -> GSNpcInstance:
 	var body := Node3D.new()
 	_world.add_child(body)
 	body.global_position = at
 
-	var npc := DotNpcInstance.new()
+	var npc := GSNpcInstance.new()
 	npc.def = def
 	npc.node = body
 	npc.instance_id = body.get_instance_id()

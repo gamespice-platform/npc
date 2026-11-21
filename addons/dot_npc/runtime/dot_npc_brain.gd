@@ -1,4 +1,4 @@
-class_name DotNpcBrain
+class_name GSNpcBrain
 extends RefCounted
 
 ## What one NPC decides, one tick at a time; the class a game's NPC script extends. Server only.
@@ -6,7 +6,7 @@ extends RefCounted
 ## (`extends "res://addons/dot_npc/runtime/dot_npc_brain.gd"`), never class_name, which a mounted pack cannot resolve.
 
 ## The NPC this brain drives. Set before [method _npc_ready].
-var npc: DotNpcInstance = null
+var npc: GSNpcInstance = null
 
 ## Who is running it. The way to reach the world, the senses and the navigation.
 var director: Node = null
@@ -16,11 +16,11 @@ var director: Node = null
 var age: float = 0.0
 
 ## The path being walked, if this brain paths at all.
-var path: DotNpcPath = null
+var path: GSNpcPath = null
 
-## A player's hold on this body (see [DotNpcDrive]); null or inactive means the AI runs. Set by the game.
+## A player's hold on this body (see [GSNpcDrive]); null or inactive means the AI runs. Set by the game.
 ## Taking or letting go of the body tells the spawner, which paces a driven brain's ticks no longer.
-var drive: DotNpcDrive = null:
+var drive: GSNpcDrive = null:
 	set(value):
 		var changed := (drive == null) != (value == null)
 		drive = value
@@ -30,16 +30,16 @@ var drive: DotNpcDrive = null:
 
 
 
-func bind(p_npc: DotNpcInstance, p_director: Node) -> void:
+func bind(p_npc: GSNpcInstance, p_director: Node) -> void:
 	npc = p_npc
 	director = p_director
-	path = DotNpcPath.new()
+	path = GSNpcPath.new()
 	_npc_ready()
 
 
 ## Lets go of the NPC, the director and anything a subclass built around them.
 ## A brain and its NPC point at each other and two [RefCounted]s that do are never freed (no cycle
-## collector), so [DotNpcSpawner] calls this on removal and again for everything alive when it is freed.
+## collector), so [GSNpcSpawner] calls this on removal and again for everything alive when it is freed.
 func unbind() -> void:
 	_npc_unbound()
 	npc = null
@@ -60,12 +60,12 @@ func think(delta: float) -> void:
 
 
 ## Whether this brain thinks as gather, decide, apply instead of [method _npc_think]. The spawner runs
-## every such brain's gather, then every decide (on workers when [member DotNpcSpawner.think_workers]), then every apply.
+## every such brain's gather, then every decide (on workers when [member GSNpcSpawner.think_workers]), then every apply.
 func splits_think() -> bool:
 	return false
 
 
-## Whether this brain thinks once every few ticks and lets the spawner count them ([member DotNpcSpawner.pacing]).
+## Whether this brain thinks once every few ticks and lets the spawner count them ([member GSNpcSpawner.pacing]).
 ## A brain that does overrides [method think_paced], [method _pace_take] and [method _pace_give], and calls
 ## [method pace_every] when it changes its interval outside its own think. Never while a drive is held.
 func paces() -> bool:
@@ -106,7 +106,7 @@ func _npc_gather(_delta: float) -> Variant:
 	return null
 
 
-## Pure: a function of [param data] and the brain's own fields, with no node, physics, DotLog, signal or shared-RNG access.
+## Pure: a function of [param data] and the brain's own fields, with no node, physics, GSLog, signal or shared-RNG access.
 ## Returns the intent as plain data, and changes nothing.
 func _npc_decide(_data: Variant) -> Variant:
 	return null
@@ -225,11 +225,11 @@ func steer_toward(to: Vector3, speed: float, delta: float) -> void:
 
 	direction = direction.normalized()
 
-	# A 2D body. The plane is XZ — see [member DotNpcInstance.node] — so a direction's
+	# A 2D body. The plane is XZ — see [member GSNpcInstance.node] — so a direction's
 	# `z` is the 2D `y`, and nothing else about this function applies: there is no
 	# gravity to add, no floor to be on, and no basis to rotate.
 	if npc.node is Node2D:
-		var flat := DotNpcInstance.from_plane(direction)
+		var flat := GSNpcInstance.from_plane(direction)
 		var body_2d := npc.node as Node2D
 
 		if body_2d is RigidBody2D:
@@ -283,12 +283,12 @@ func face(direction: Vector3) -> void:
 		return
 
 	if npc.node is Node2D:
-		(npc.node as Node2D).global_rotation = DotNpcInstance.from_plane(flat).angle()
+		(npc.node as Node2D).global_rotation = GSNpcInstance.from_plane(flat).angle()
 		return
 
 	var body := npc.node as Node3D
 		# `look_at` errors on a target equal to the node's position, so the flat length check keeps that off the log
-		# (and a body fallen out of the map). Look at `position + direction`: -Z is what [method DotNpcInstance.facing]
+		# (and a body fallen out of the map). Look at `position + direction`: -Z is what [method GSNpcInstance.facing]
 		# reads, and `- direction` pointed the sight cone behind a chasing monster.
 	var origin := body.global_position
 	var target := origin + flat.normalized()

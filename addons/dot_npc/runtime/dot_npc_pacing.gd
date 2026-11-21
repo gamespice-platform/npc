@@ -1,22 +1,22 @@
-class_name DotNpcPacing
+class_name GSNpcPacing
 extends RefCounted
-## The spawner's think pacing: counts the ticks of every brain that [method DotNpcBrain.paces] in one batch,
-## natively when GameSpice Sim's `DotSimThinkPacer` is loaded, so only the brains due this tick are called.
-## Off ([member DotNpcSpawner.pacing] false) the spawner calls every brain every tick, as before.
+## The spawner's think pacing: counts the ticks of every brain that [method GSNpcBrain.paces] in one batch,
+## natively when GameSpice Sim's `GSSimThinkPacer` is loaded, so only the brains due this tick are called.
+## Off ([member GSNpcSpawner.pacing] false) the spawner calls every brain every tick, as before.
 ##
 ## Exactly what the brains' own counting gives: the same brains think on the same ticks with the same seconds,
 ## in the spawner's order, through spawns, removals, staggers and possessions mid-tick. A brain that changes
 ## another's pacing while it thinks has the rows before it committed as the script would hold them, and the
-## rest of the tick's due list read again ([method DotNpcPacer.commit_to], [method DotNpcPacer.due_after]).
+## rest of the tick's due list read again ([method GSNpcPacer.commit_to], [method GSNpcPacer.due_after]).
 
-const NATIVE := &"DotSimThinkPacer"
+const NATIVE := &"GSSimThinkPacer"
 
-var _spawner: DotNpcSpawner
+var _spawner: GSNpcSpawner
 
-## The pacer in use (native or [DotNpcPacer]); null while pacing is off.
+## The pacer in use (native or [GSNpcPacer]); null while pacing is off.
 var _pacer: Object = null
 ## The script twin checked against the native pacer in verify mode.
-var _twin: DotNpcPacer = null
+var _twin: GSNpcPacer = null
 var _on := false
 var _native := false
 var _verify := false
@@ -34,7 +34,7 @@ var _q := 0
 var _cur_changed := false
 
 
-func _init(spawner: DotNpcSpawner) -> void:
+func _init(spawner: GSNpcSpawner) -> void:
 	_spawner = spawner
 
 
@@ -59,7 +59,7 @@ func sync() -> void:
 
 	if native_wanted and not has_native and not _warned:
 		_warned = true
-		DotLog.warn(DotNpcSpawner.CHANNEL, "native think pacing asked for but dot-sim is not loaded; script pacing", {})
+		GSLog.warn(GSNpcSpawner.CHANNEL, "native think pacing asked for but dot-sim is not loaded; script pacing", {})
 
 	if on == _on and native == _native and verify == _verify:
 		return
@@ -76,12 +76,12 @@ func sync() -> void:
 	if not on:
 		return
 
-	_pacer = ClassDB.instantiate(NATIVE) if native else DotNpcPacer.new()
-	_twin = DotNpcPacer.new() if verify else null
+	_pacer = ClassDB.instantiate(NATIVE) if native else GSNpcPacer.new()
+	_twin = GSNpcPacer.new() if verify else null
 
 	for id in s._npcs:
 		_c(&"add", [id])
-		var npc: DotNpcInstance = s._npcs[id]
+		var npc: GSNpcInstance = s._npcs[id]
 
 		if _wants(npc):
 			_toggle(npc, true)
@@ -91,11 +91,11 @@ func _give_back() -> void:
 	var s := _spawner
 
 	for id in s._npcs:
-		var npc: DotNpcInstance = s._npcs[id]
+		var npc: GSNpcInstance = s._npcs[id]
 		var r: PackedFloat64Array = _c(&"row", [id])
 
-		if r.size() == 4 and r[3] != 0.0 and npc.brain is DotNpcBrain:
-			(npc.brain as DotNpcBrain)._pace_give(int(r[0]), r[1], int(r[2]))
+		if r.size() == 4 and r[3] != 0.0 and npc.brain is GSNpcBrain:
+			(npc.brain as GSNpcBrain)._pace_give(int(r[0]), r[1], int(r[2]))
 
 
 # One call on the pacer, checked against the twin in verify mode (bit for bit).
@@ -110,23 +110,23 @@ func _c(method: StringName, args: Array) -> Variant:
 			_spawner.pacing_mismatches += 1
 
 			if _spawner.pacing_mismatches == 1:
-				DotLog.error(DotNpcSpawner.CHANNEL, "native think pacing differs from the script", {
+				GSLog.error(GSNpcSpawner.CHANNEL, "native think pacing differs from the script", {
 					"call": String(method), "args": str(args), "native": str(got), "script": str(want),
 				})
 
 	return got
 
 
-static func _wants(npc: DotNpcInstance) -> bool:
-	if npc == null or not (npc.brain is DotNpcBrain):
+static func _wants(npc: GSNpcInstance) -> bool:
+	if npc == null or not (npc.brain is GSNpcBrain):
 		return false
 
-	var brain := npc.brain as DotNpcBrain
+	var brain := npc.brain as GSNpcBrain
 	return brain.paces() and brain.drive == null
 
 
-func _toggle(npc: DotNpcInstance, on: bool) -> void:
-	var brain := npc.brain as DotNpcBrain
+func _toggle(npc: GSNpcInstance, on: bool) -> void:
+	var brain := npc.brain as GSNpcBrain
 
 	if on:
 		var c: Array = brain._pace_take()
@@ -140,20 +140,20 @@ func _toggle(npc: DotNpcInstance, on: bool) -> void:
 
 
 ## A spawned NPC, in the spawner's order (before its brain is attached).
-func added(npc: DotNpcInstance) -> void:
+func added(npc: GSNpcInstance) -> void:
 	if _on:
 		_c(&"add", [npc.instance_id])
 
 
 ## A removed NPC. Its brain is being let go, so its counters are not handed back.
-func removed(npc: DotNpcInstance) -> void:
+func removed(npc: GSNpcInstance) -> void:
 	if _on:
 		_c(&"remove", [npc.instance_id])
 
 
 ## [param npc]'s pacing may have changed: a brain attached, or a drive taken or let go. [param retake] reads the
 ## counters from the brain again even when it stays paced (a new brain).
-func changed(npc: DotNpcInstance, retake: bool = false) -> void:
+func changed(npc: GSNpcInstance, retake: bool = false) -> void:
 	if not _on or npc == null:
 		return
 
@@ -184,7 +184,7 @@ func changed(npc: DotNpcInstance, retake: bool = false) -> void:
 
 
 ## A brain set its `every` to [param n] outside its own think (a stagger).
-func every(npc: DotNpcInstance, n: int) -> void:
+func every(npc: GSNpcInstance, n: int) -> void:
 	if not _on or npc == null or not _wants(npc):
 		return
 
@@ -218,7 +218,7 @@ func _reread() -> void:
 
 
 ## One tick's thinking for every NPC, in the spawner's order: a paced brain that is due gets
-## [method DotNpcBrain.think_paced], an unpaced one [method DotNpcBrain.think] or its gather into [param split].
+## [method GSNpcBrain.think_paced], an unpaced one [method GSNpcBrain.think] or its gather into [param split].
 ## Pacing off, every brain is called and counts for itself.
 func think(delta: float, split: Array, gathered: Array) -> void:
 	if not _on:
@@ -266,18 +266,18 @@ func think(delta: float, split: Array, gathered: Array) -> void:
 
 # Thinks for NPC [param id] if it is alive with a brain, and returns it (null otherwise). [param owed] >= 0
 # is a paced turn owing that many seconds; below 0, an unpaced one of [param delta].
-func _call(id: int, owed: float, delta: float, split: Array, gathered: Array) -> DotNpcInstance:
+func _call(id: int, owed: float, delta: float, split: Array, gathered: Array) -> GSNpcInstance:
 	var found: Variant = _spawner._npcs.get(id)
 
-	if not (found is DotNpcInstance):
+	if not (found is GSNpcInstance):
 		return null
 
-	var npc: DotNpcInstance = found
+	var npc: GSNpcInstance = found
 
 	if not npc.is_alive() or npc.brain == null:
 		return null
 
-	var brain := npc.brain as DotNpcBrain
+	var brain := npc.brain as GSNpcBrain
 
 	if owed >= 0.0:
 		_everies.append(brain.think_paced(owed))

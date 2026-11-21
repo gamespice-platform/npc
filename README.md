@@ -15,11 +15,11 @@ Copy `addons/dot_npc/` and dot-core's `addons/dot_core/` into your project and e
 ## Quick start
 
 ```gdscript
-var npcs := DotNpcSpawner.new()
+var npcs := GSNpcSpawner.new()
 npcs.authoritative = true                       # on the server only
 npcs.catalogue = catalogue
-npcs.limits = DotNpcLimits.new()
-npcs.world_ref = DotNodeRef.of_path(^"../World")
+npcs.limits = GSNpcLimits.new()
+npcs.world_ref = GSNodeRef.of_path(^"../World")
 add_child(npcs)
 
 # Once per map change:
@@ -35,7 +35,7 @@ npcs.tick(delta)
 A definition says what one kind of NPC is:
 
 ```gdscript
-var zombie := DotNpcDef.make(&"zombie", "res://npcs/zombie.tscn")
+var zombie := GSNpcDef.make(&"zombie", "res://npcs/zombie.tscn")
 zombie.brain_script_path = "res://npcs/zombie_brain.gd"   # a file path, not a class name
 zombie.faction = &"hostile"
 zombie.max_health = 100.0
@@ -58,7 +58,7 @@ func _npc_think(delta: float) -> void:
 
 ## Population limits
 
-`DotNpcLimits` is a `DotConfig`, so an operator can change it without a rebuild: defaults, JSON file, `DOT_NPC_*` environment, `--npc-*` command line.
+`GSNpcLimits` is a `GSConfig`, so an operator can change it without a rebuild: defaults, JSON file, `DOT_NPC_*` environment, `--npc-*` command line.
 
 | Setting | Default | What it does |
 | --- | --- | --- |
@@ -78,7 +78,7 @@ func _npc_think(delta: float) -> void:
 
 ## Navigation
 
-Maps in this family are built in code from constants, so there is no authored geometry to bake a `NavigationMesh` from. `DotNpcNavBuilder` generates a point graph from the same constants the geometry used. `DotNpcNavData.source_digest` lets a test notice when a map changed but its graph did not.
+Maps in this family are built in code from constants, so there is no authored geometry to bake a `NavigationMesh` from. `GSNpcNavBuilder` generates a point graph from the same constants the geometry used. `GSNpcNavData.source_digest` lets a test notice when a map changed but its graph did not.
 
 A game with authored geometry can use Godot's own `NavigationRegion3D` instead. A spawner with no navigation data spawns anywhere, and a brain that owns a `NavigationAgent3D` paths with that.
 
@@ -87,14 +87,14 @@ On top of plain A* the graph adds:
 | Feature | What it does |
 | --- | --- |
 | Smoothing | A grid turns only eight ways, so a path across an open room zigzags. `find_smooth_path` removes corners the world does not have. On by default. |
-| Areas | A point can be water, a hazard or a doorway. `DotNpcNavFilter` gives an area a cost, so NPCs walk round a pond and wade only when going round is worse. |
-| Flags | Crouch, jump, avoid, door. `DotNpcDef.nav_exclude_flags` lists what one kind of NPC cannot use. |
-| Partial paths | An unreachable goal gives the best path toward it, and `DotNpcPath.partial` says so. |
+| Areas | A point can be water, a hazard or a doorway. `GSNpcNavFilter` gives an area a cost, so NPCs walk round a pond and wade only when going round is worse. |
+| Flags | Crouch, jump, avoid, door. `GSNpcDef.nav_exclude_flags` lists what one kind of NPC cannot use. |
+| Partial paths | An unreachable goal gives the best path toward it, and `GSNpcPath.partial` says so. |
 | Cover | The generator records where walls are and which way they face, so a brain can ask where to hide from an enemy. |
 
 ```gdscript
-var filter := DotNpcNavFilter.new()
-filter.set_area_cost(DotNpcNavData.AREA_WATER, 6.0)
+var filter := GSNpcNavFilter.new()
+filter.set_area_cost(GSNpcNavData.AREA_WATER, 6.0)
 graph.filter = filter
 
 var path := graph.find_smooth_path(from, to, 2.0, true)   # smoothed, may be partial

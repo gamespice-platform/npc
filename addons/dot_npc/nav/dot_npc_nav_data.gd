@@ -1,24 +1,24 @@
 @tool
-class_name DotNpcNavData
+class_name GSNpcNavData
 extends Resource
 
 ## Where an NPC may stand, shipped beside the map it was generated from.
 ## A point graph generated from the map's own constants (`tools/export_nav.gd`), not a baked NavigationMesh:
 ## code-built maps have nothing to bake. A game with authored geometry should use NavigationRegion3D.
 
-# No log channel: the document the exporter writes. validate() returns a DotResult and
+# No log channel: the document the exporter writes. validate() returns a GSResult and
 # the spawner that adopts it logs the outcome with the map in hand.
 
-## Bumped when the on-disk shape or what [DotNpcNavBuilder] builds from the same inputs changes
+## Bumped when the on-disk shape or what [GSNpcNavBuilder] builds from the same inputs changes
 ## (the digest hashes constants only, so an older builder's cache would pass as fresh). A stale cache is rebuilt.
 ## 2 added per-point areas, flags and cover (version 1 loads as area 0, no flags, no cover); 3 retired caches that dropped walkable edges.
 const FORMAT_VERSION := 3
 
 const CHANNEL := "npc.nav.data"
 
-## What a point is made of. An id, not a meaning: [DotNpcNavFilter] gives it a cost
+## What a point is made of. An id, not a meaning: [GSNpcNavFilter] gives it a cost
 ## and a game decides what its own ids stand for. A generator may use any id up to
-## [constant DotNpcNavFilter.MAX_AREAS].
+## [constant GSNpcNavFilter.MAX_AREAS].
 const AREA_GROUND := 0
 const AREA_WATER := 1
 const AREA_HAZARD := 2
@@ -45,7 +45,7 @@ enum Cover {
 	EXPOSED = 1 << 2,    ## In the open. Recorded so it can be avoided, not used.
 }
 
-## The map this was generated for. Must match [code]DotMapDef.id[/code].
+## The map this was generated for. Must match [code]GSMapDef.id[/code].
 @export var map_id: StringName = &""
 
 ## A digest of the constants the geometry was built from.
@@ -172,24 +172,24 @@ func normalise_arrays() -> void:
 		flags.resize(points.size())
 
 
-func connect_points(a: int, b: int) -> DotResult:
+func connect_points(a: int, b: int) -> GSResult:
 	if a == b:
-		return DotResult.fail(DotError.CODE_INVALID, "A point cannot connect to itself.")
+		return GSResult.fail(GSError.CODE_INVALID, "A point cannot connect to itself.")
 
 	if a < 0 or b < 0 or a >= points.size() or b >= points.size():
-		return DotResult.fail(
-			DotError.CODE_INVALID, "Edge index out of range.", "%d-%d" % [a, b]
+		return GSResult.fail(
+			GSError.CODE_INVALID, "Edge index out of range.", "%d-%d" % [a, b]
 		)
 
 	edges.append(a)
 	edges.append(b)
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 ## Drops what a physics test says a body cannot stand in or walk through, and compacts the rest;
 ## [param point_blocked] and [param edge_blocked] cover hulls no builder box describes. Returns
-## (points dropped, edges dropped). Main thread only; run it before making a [DotNpcNavGraph].
+## (points dropped, edges dropped). Main thread only; run it before making a [GSNpcNavGraph].
 func prune(point_blocked: Callable, edge_blocked: Callable = Callable()) -> Vector2i:
 	normalise_arrays()
 	var remap := PackedInt32Array()
@@ -240,7 +240,7 @@ func prune(point_blocked: Callable, edge_blocked: Callable = Callable()) -> Vect
 
 
 ## Segments (two points each) of edges [method prune] cut, including those to a point it removed, in [member meta]
-## so they survive the cache. [method DotNpcNavGraph.can_walk_straight] refuses a line across one.
+## so they survive the cache. [method GSNpcNavGraph.can_walk_straight] refuses a line across one.
 func cut_edges() -> PackedVector3Array:
 	var found: Variant = meta.get(CUT_KEY)
 	return found if found is PackedVector3Array else PackedVector3Array()
@@ -481,32 +481,32 @@ func matches(current_digest: String) -> bool:
 	return source_digest != "" and source_digest == current_digest
 
 
-func validate() -> DotResult:
+func validate() -> GSResult:
 	invalidate_index()
 
 	if map_id == &"":
-		return DotResult.fail(DotError.CODE_INVALID, "Nav data needs a map id.")
+		return GSResult.fail(GSError.CODE_INVALID, "Nav data needs a map id.")
 
 	if points.is_empty():
-		return DotResult.fail(
-			DotError.CODE_INVALID, "Nav data has no walkable points.", String(map_id)
+		return GSResult.fail(
+			GSError.CODE_INVALID, "Nav data has no walkable points.", String(map_id)
 		)
 
 	if edges.size() % 2 != 0:
-		return DotResult.fail(
-			DotError.CODE_PARSE, "Edge list is not a whole number of pairs.",
+		return GSResult.fail(
+			GSError.CODE_PARSE, "Edge list is not a whole number of pairs.",
 			"%d" % edges.size()
 		)
 
 	for i in edges.size():
 		if edges[i] < 0 or edges[i] >= points.size():
-			return DotResult.fail(
-				DotError.CODE_INVALID, "Edge index out of range.", "%d" % edges[i]
+			return GSResult.fail(
+				GSError.CODE_INVALID, "Edge index out of range.", "%d" % edges[i]
 			)
 
 	if source_digest == "":
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"Nav data has no source digest, so nothing can tell whether it is stale.",
 			String(map_id)
 		)
@@ -514,8 +514,8 @@ func validate() -> DotResult:
 		# Longer than the point list is a generator bug and is refused; shorter is a version 1
 		# document and is filled in. Silently trimming the extra would hide a real mistake.
 	if areas.size() > points.size() or flags.size() > points.size():
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"Nav data has more area or flag entries than points.",
 			"%d points, %d areas, %d flags" % [points.size(), areas.size(), flags.size()]
 		)
@@ -524,15 +524,15 @@ func validate() -> DotResult:
 
 	if cover_normals.size() != cover_positions.size() \
 			or cover_flags.size() != cover_positions.size():
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"The cover lists are not the same length.",
 			"%d positions, %d normals, %d flags" % [
 				cover_positions.size(), cover_normals.size(), cover_flags.size()
 			]
 		)
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 func to_dictionary() -> Dictionary:
@@ -600,7 +600,7 @@ func to_cache_bytes() -> PackedByteArray:
 
 ## A graph from [method to_cache_bytes], or null when the bytes are not one (truncated,
 ## another format version): the caller builds it instead.
-static func from_cache_bytes(bytes: PackedByteArray) -> DotNpcNavData:
+static func from_cache_bytes(bytes: PackedByteArray) -> GSNpcNavData:
 	if bytes.size() < 8:
 		return null
 	# The raw size leads the bytes: decompress_dynamic fails on gzip in 4.7 and a bad size is no graph.
@@ -615,10 +615,10 @@ static func from_cache_bytes(bytes: PackedByteArray) -> DotNpcNavData:
 		return null
 	var found := int((data as Dictionary).get("format", 0))
 	if found != FORMAT_VERSION:
-		DotLog.debug(CHANNEL, "nav cache rejected, will rebuild", {"format": found, "want": FORMAT_VERSION})
+		GSLog.debug(CHANNEL, "nav cache rejected, will rebuild", {"format": found, "want": FORMAT_VERSION})
 		return null
 	var d := data as Dictionary
-	var nav := DotNpcNavData.new()
+	var nav := GSNpcNavData.new()
 	nav.map_id = StringName(str(d.get("map", "")))
 	nav.source_digest = str(d.get("digest", ""))
 	nav.point_radius = float(d.get("radius", 2.0))
@@ -655,8 +655,8 @@ static func _read_vectors(raw: Variant) -> PackedVector3Array:
 	return out
 
 
-static func from_dictionary(data: Dictionary) -> DotNpcNavData:
-	var nav := DotNpcNavData.new()
+static func from_dictionary(data: Dictionary) -> GSNpcNavData:
+	var nav := GSNpcNavData.new()
 
 	nav.map_id = StringName(str(data.get("map", "")))
 	nav.source_digest = str(data.get("digest", ""))
@@ -712,4 +712,4 @@ func describe() -> Dictionary:
 
 
 func _to_string() -> String:
-	return "DotNpcNavData(%s, %d points)" % [String(map_id), points.size()]
+	return "GSNpcNavData(%s, %d points)" % [String(map_id), points.size()]

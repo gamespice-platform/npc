@@ -1,19 +1,19 @@
-class_name DotNpcNavGraph
+class_name GSNpcNavGraph
 extends RefCounted
 
-## A* over a [DotNpcNavData] point graph, plus the funnel a follower actually walks.
-## Not NavigationServer3D: code-built maps have nothing to bake, so the data is a graph (see [DotNpcNavData]).
+## A* over a [GSNpcNavData] point graph, plus the funnel a follower actually walks.
+## Not NavigationServer3D: code-built maps have nothing to bake, so the data is a graph (see [GSNpcNavData]).
 ## The adjacency index is built once and reused, since ninety NPCs repathing would otherwise rebuild it per query.
 
 # No log channel: a search. A path that is not found is an answer, asked for several NPCs
 # a second, and the caller decides what it means; adopting or refusing the graph for a
-# map is logged by DotNpcSpawner.set_nav_data, which is where it enters the process.
+# map is logged by GSNpcSpawner.set_nav_data, which is where it enters the process.
 
-var data: DotNpcNavData = null
+var data: GSNpcNavData = null
 
 ## Which points this searcher may use and what they cost it.
 ## Null means no filtering, which is marginally cheaper than a neutral filter; most NPCs have nothing to say.
-var filter: DotNpcNavFilter = null
+var filter: GSNpcNavFilter = null
 
 ## Whether the last [method find_path] reached the goal or gave up short of it.
 ## Like Detour's partial result: a brain that cannot tell keeps repathing to something unreachable for ever.
@@ -43,7 +43,7 @@ var _copies: Dictionary = {}
 ## Point index -> [expires_at, factor]: places where a walker stalled, costed up for everybody until they expire.
 var _bad: Dictionary = {}
 
-# DotNpcNavLine and DotNpcNavSmooth by uid, not by name: both name this class back, and a script
+# GSNpcNavLine and GSNpcNavSmooth by uid, not by name: both name this class back, and a script
 # loop stays in memory for good (Godot 4.7). Both load in static initialisers, which run when this
 # script loads, on the main thread: a script first loaded on a WorkerThreadPool task (the first
 # graph copy made by a nav job) left one object behind at exit.
@@ -107,7 +107,7 @@ func _apply_bad(index: int, old: float, factor: float) -> void:
 			astar.set_point_weight_scale(index, astar.get_point_weight_scale(index) / old * factor)
 
 
-func _init(p_data: DotNpcNavData = null) -> void:
+func _init(p_data: GSNpcNavData = null) -> void:
 	# Loaded here, on the building thread, before any path worker smooths.
 	var _s := _smooth()
 	if p_data != null:
@@ -115,13 +115,13 @@ func _init(p_data: DotNpcNavData = null) -> void:
 
 
 ## Adopts [param p_data] and builds the adjacency index.
-func rebuild(p_data: DotNpcNavData) -> DotResult:
+func rebuild(p_data: GSNpcNavData) -> GSResult:
 	data = p_data
 	_adjacency.clear()
 	_line.clear()
 
 	if data == null:
-		return DotResult.fail(DotError.CODE_INVALID, "No navigation data.")
+		return GSResult.fail(GSError.CODE_INVALID, "No navigation data.")
 
 	var valid := data.validate()
 
@@ -149,7 +149,7 @@ func rebuild(p_data: DotNpcNavData) -> DotResult:
 		_adjacency[b] = from_b
 
 	_label_components()
-	return DotResult.success(self)
+	return GSResult.success(self)
 
 
 ## Which connected piece of the graph each point is in, by flood fill. Filter-blind: an NPC
@@ -266,7 +266,7 @@ class PathQuery:
 	extends RefCounted
 	var from := Vector3.ZERO
 	var to := Vector3.ZERO
-	var filter: DotNpcNavFilter = null
+	var filter: GSNpcNavFilter = null
 	var snap_radius := -1.0
 	var allow_partial := false
 	## Smoothed as [method find_smooth_path] does, to [member horizon] points.
@@ -276,7 +276,7 @@ class PathQuery:
 	var partial := false
 
 
-## [method find_path] (or [method find_smooth_path]) for every query, [param workers] at a time on [DotParallel],
+## [method find_path] (or [method find_smooth_path]) for every query, [param workers] at a time on [GSParallel],
 ## each worker on its own native search. Answers equal the one-at-a-time calls; 0, the script search or no
 ## threads runs inline in order. Updates [member searches] and [member failures]; [member filter] is restored.
 func find_paths(queries: Array, workers: int) -> void:
@@ -291,7 +291,7 @@ func find_paths(queries: Array, workers: int) -> void:
 
 	data.build_index()
 	_line.prepare(self)
-	var n := DotParallel.resolve_workers(workers) if use_native_search else 0
+	var n := GSParallel.resolve_workers(workers) if use_native_search else 0
 	var groups: Array = []
 	var group_of: Dictionary = {}
 
@@ -322,7 +322,7 @@ func find_paths(queries: Array, workers: int) -> void:
 					a.points = _smooth().smooth(self, a.points, -1.0, 8, q.horizon, legs)
 				out.append(a)
 			return out
-		var slots := DotParallel.run(task, chunks, &"npc.paths", n)
+		var slots := GSParallel.run(task, chunks, &"npc.paths", n)
 
 		for c in chunks:
 			var answers: Array = slots[c]
@@ -481,7 +481,7 @@ func _find_native(from: Vector3, to: Vector3, start: int, goal: int, allow_parti
 ## [param count] native searches for [param with], each built exactly as [method _native_for]
 ## builds it (a subclass's links included), so any of them answers as the cached one does.
 ## Rebuilt when the cached one is (a subclass that adds links clears [member _native]).
-func _native_copies(with: DotNpcNavFilter, count: int) -> Array:
+func _native_copies(with: GSNpcNavFilter, count: int) -> Array:
 	var original := _native_for(with)
 	var key := _native_key(with)
 	var entry: Dictionary = _copies.get(key, {})
@@ -503,7 +503,7 @@ func _native_copies(with: DotNpcNavFilter, count: int) -> Array:
 ## The [AStar3D] for [param with]: every point, its arrival weight, filtered points disabled.
 ## Kept per filter signature (flags, costs, graph size), not per object, because a spawner hands over
 ## a filter per kind and a game may build a fresh one each search.
-func _native_for(with: DotNpcNavFilter) -> AStar3D:
+func _native_for(with: GSNpcNavFilter) -> AStar3D:
 	var key := _native_key(with)
 	var found: Variant = _native.get(key)
 
@@ -539,13 +539,13 @@ func _native_for(with: DotNpcNavFilter) -> AStar3D:
 	return astar
 
 
-func _native_key(with: DotNpcNavFilter) -> String:
+func _native_key(with: GSNpcNavFilter) -> String:
 	var key := "-" if with == null else "%d|%d|%s|%s" % [with.include_flags, with.exclude_flags, with.avoid_cost, with.area_costs]
 	return key + "|%d|%d" % [data.points.size(), data.edges.size()]
 
 
 ## The nearest point this searcher is allowed to stand on.
-## Not [method DotNpcNavData.nearest_point]: an NPC that cannot crouch at a crouch tunnel's mouth
+## Not [method GSNpcNavData.nearest_point]: an NPC that cannot crouch at a crouch tunnel's mouth
 ## would snap onto a point it may not occupy and every path would fail at the first edge.
 func _nearest_passable(p: Vector3, radius: float) -> int:
 	if filter == null:
@@ -650,7 +650,7 @@ var straight_width_ratio: float = 0.75:
 
 
 ## Whether an NPC can walk straight from [param a] to [param b]. A point graph has no polygons to
-## raycast, so the corridor is sampled; see [DotNpcNavLine].
+## raycast, so the corridor is sampled; see [GSNpcNavLine].
 func can_walk_straight(a: Vector3, b: Vector3, corridor: float = -1.0) -> bool:
 	return _line.can_walk_straight(self, a, b, corridor)
 

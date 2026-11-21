@@ -1,16 +1,16 @@
-class_name DotNpcSpawning
+class_name GSNpcSpawning
 extends RefCounted
 ## The spawner's spawn path: refusal checks, placement, instantiation, seeding and the brain.
 
 const CHANNEL := "npc"
 
-var s: DotNpcSpawner
+var s: GSNpcSpawner
 ## Spawns adopted so far, the fallback subject of [method seed_for]. Never reset, so a
 ## second round on the same spawner does not replay the first round's choices.
 var _spawn_serial: int = 0
 
 
-func _init(spawner: DotNpcSpawner) -> void:
+func _init(spawner: GSNpcSpawner) -> void:
 	s = spawner
 
 
@@ -20,13 +20,13 @@ func spawn(
 	at: Vector3,
 	owner_id: StringName = &"",
 	orientation: Basis = Basis.IDENTITY
-) -> DotNpcInstance:
+) -> GSNpcInstance:
 	var prepared := _prepare(npc_id, at, owner_id)
 
 	if prepared.is_empty():
 		return null
 
-	var def: DotNpcDef = prepared[0]
+	var def: GSNpcDef = prepared[0]
 	var node: Node = prepared[1]
 	var placed: Vector3 = prepared[2]
 
@@ -49,13 +49,13 @@ func spawn_2d(
 	at: Vector2,
 	owner_id: StringName = &"",
 	rotation: float = 0.0
-) -> DotNpcInstance:
-	var prepared := _prepare(npc_id, DotNpcInstance.to_plane(at), owner_id)
+) -> GSNpcInstance:
+	var prepared := _prepare(npc_id, GSNpcInstance.to_plane(at), owner_id)
 
 	if prepared.is_empty():
 		return null
 
-	var def: DotNpcDef = prepared[0]
+	var def: GSNpcDef = prepared[0]
 	var node: Node = prepared[1]
 	var placed: Vector3 = prepared[2]
 
@@ -65,7 +65,7 @@ func spawn_2d(
 		return null
 
 	var body := node as Node2D
-	body.position = DotNpcInstance.from_plane(placed)
+	body.position = GSNpcInstance.from_plane(placed)
 	body.rotation = rotation
 
 	return _adopt(def, body, owner_id)
@@ -119,7 +119,7 @@ func _prepare(npc_id: StringName, at: Vector3, owner_id: StringName) -> Array:
 ## Puts a placed node into the world and into the books, and gives it its brain.
 ## The world is resolved here, after the node exists, in a way that does not leak the instantiated
 ## scene when the world cannot be resolved.
-func _adopt(def: DotNpcDef, body: Node, owner_id: StringName) -> DotNpcInstance:
+func _adopt(def: GSNpcDef, body: Node, owner_id: StringName) -> GSNpcInstance:
 	var resolved := s._resolve_world()
 
 	if not resolved.ok:
@@ -129,7 +129,7 @@ func _adopt(def: DotNpcDef, body: Node, owner_id: StringName) -> DotNpcInstance:
 
 	(resolved.value as Node).add_child(body)
 
-	var npc := DotNpcInstance.new()
+	var npc := GSNpcInstance.new()
 	npc.def = def
 	npc.node = body
 	npc.instance_id = body.get_instance_id()
@@ -157,7 +157,7 @@ func _adopt(def: DotNpcDef, body: Node, owner_id: StringName) -> DotNpcInstance:
 	if not attached.ok:
 				# The NPC still exists: deleting one whose brain would not load hides which script is broken,
 				# and an inert NPC is something an operator can see and name beside the log line.
-		DotLog.warn(CHANNEL, "an NPC spawned without its brain", {
+		GSLog.warn(CHANNEL, "an NPC spawned without its brain", {
 			"npc": String(def.id),
 			"why": attached.error.message,
 		})
@@ -171,7 +171,7 @@ func _adopt(def: DotNpcDef, body: Node, owner_id: StringName) -> DotNpcInstance:
 ## Two stream names, so the game's number 5 and this spawner's fifth spawn are different seeds
 ## when seed_source answers for some NPCs and not others.
 func seed_for(subject: int, from_game: bool = false) -> int:
-	var stream := DotRandomStream.new(s.seed_base).stream_for(
+	var stream := GSRandomStream.new(s.seed_base).stream_for(
 		&"npc_id" if from_game else &"npc", subject
 	)
 
@@ -180,7 +180,7 @@ func seed_for(subject: int, from_game: bool = false) -> int:
 	return stream.range_i_at(0, 2, 0x7FFFFFFF)
 
 
-func _seed_npc(npc: DotNpcInstance) -> int:
+func _seed_npc(npc: GSNpcInstance) -> int:
 	_spawn_serial += 1
 
 	if s.seed_source.is_valid():
@@ -193,15 +193,15 @@ func _seed_npc(npc: DotNpcInstance) -> int:
 
 
 ## Spawns up to [param count] of one kind around [param at]. Returns what was made.
-## Capped by [member DotNpcLimits.burst_cap] (0 = unlimited): a director asking for a wave versus a bug asking for ten thousand.
+## Capped by [member GSNpcLimits.burst_cap] (0 = unlimited): a director asking for a wave versus a bug asking for ten thousand.
 func spawn_group(
 	npc_id: StringName,
 	at: Vector3,
 	count: int,
 	spread: float = 3.0,
 	owner_id: StringName = &""
-) -> Array[DotNpcInstance]:
-	var out: Array[DotNpcInstance] = []
+) -> Array[GSNpcInstance]:
+	var out: Array[GSNpcInstance] = []
 	var wanted := count if s.limits == null or s.limits.burst_cap <= 0 else mini(count, s.limits.burst_cap)
 
 	for i in wanted:
@@ -209,7 +209,7 @@ func spawn_group(
 				# wave identically, which makes a horde reproducible in a suite.
 		var angle := TAU * float(i) / float(maxi(wanted, 1))
 		var offset := Vector3(cos(angle), 0.0, sin(angle)) * spread
-		var made := spawn_2d(npc_id, DotNpcInstance.from_plane(at + offset), owner_id) \
+		var made := spawn_2d(npc_id, GSNpcInstance.from_plane(at + offset), owner_id) \
 			if s.two_dimensional else spawn(npc_id, at + offset, owner_id)
 
 		if made != null:
@@ -219,49 +219,49 @@ func spawn_group(
 
 
 ## Whether one more of [param def] may exist right now.
-func may_spawn(def: DotNpcDef, owner_id: StringName = &"") -> DotResult:
+func may_spawn(def: GSNpcDef, owner_id: StringName = &"") -> GSResult:
 	if s.limits == null:
-		return DotResult.success(null)
+		return GSResult.success(null)
 
 	if s.limits.spawn_interval > 0.0 and s._last_spawn.has(owner_id):
 		var elapsed := s._now - float(s._last_spawn[owner_id])
 
 		if elapsed < s.limits.spawn_interval:
-			return DotResult.fail(
-				DotError.CODE_RATE_LIMITED,
+			return GSResult.fail(
+				GSError.CODE_RATE_LIMITED,
 				"Spawning too fast.",
 				"%.2f s of %.2f s" % [elapsed, s.limits.spawn_interval]
 			)
 
 	if s.limits.world_budget > 0 and s.world_cost() + def.cost > s.limits.world_budget:
-		return DotResult.fail(
-			DotError.CODE_QUOTA,
+		return GSResult.fail(
+			GSError.CODE_QUOTA,
 			"The world is at its NPC budget.",
 			"%d of %d" % [s.world_cost(), s.limits.world_budget]
 		)
 
 	if s.limits.per_kind_cap > 0 and s.count_of(def.id) >= s.limits.per_kind_cap:
-		return DotResult.fail(
-			DotError.CODE_QUOTA,
+		return GSResult.fail(
+			GSError.CODE_QUOTA,
 			"There are already as many of those as this server allows.",
 			"%d of %d" % [s.count_of(def.id), s.limits.per_kind_cap]
 		)
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 ## Where an NPC asked for at [param at] would actually stand.
 ## Separate from [method spawn] so a director can ask first: a wave with three legal positions of eight
 ## should spawn three, not eight in a wall.
-func place(at: Vector3) -> DotResult:
+func place(at: Vector3) -> GSResult:
 	if s.limits == null or not s.limits.require_navigable_spawn:
-		return DotResult.success(at)
+		return GSResult.success(at)
 
 	if not s.has_nav():
-				# No navigation is not "off the navigation": a game that paths its own way has no DotNpcNavData and
+				# No navigation is not "off the navigation": a game that paths its own way has no GSNpcNavData and
 				# every spawn point is legal. Refusing would make `require_navigable_spawn` mean "refuse every
 				# spawn on a map with no nav data".
-		return DotResult.success(at)
+		return GSResult.success(at)
 
 		# Asked for the INDEX, not the snapped position: `snap()` returns its input when nothing is within
 		# the radius, and the distance from a point to itself is zero, so a spawn two hundred metres off
@@ -269,49 +269,49 @@ func place(at: Vector3) -> DotResult:
 	var index := s.nav.data.nearest_point(at, s.limits.spawn_snap_radius)
 
 	if index < 0:
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"There is nowhere to stand there.",
 			"nothing navigable within %.1f m" % s.limits.spawn_snap_radius
 		)
 
-	return DotResult.success(s.nav.data.points[index])
+	return GSResult.success(s.nav.data.points[index])
 
 
 ## Builds and attaches the brain named by the definition.
-## Loaded by path, as in [DotNpcBrain]: a class_name cannot be resolved inside a mounted pack.
-func attach_brain(npc: DotNpcInstance) -> DotResult:
+## Loaded by path, as in [GSNpcBrain]: a class_name cannot be resolved inside a mounted pack.
+func attach_brain(npc: GSNpcInstance) -> GSResult:
 	if npc == null or npc.def == null:
-		return DotResult.fail(DotError.CODE_INVALID, "No NPC to give a brain to.")
+		return GSResult.fail(GSError.CODE_INVALID, "No NPC to give a brain to.")
 
 	if npc.def.brain_script_path == "":
-		return DotResult.success(null)
+		return GSResult.success(null)
 
 	if not s._held.has(npc.def.brain_script_path) and not ResourceLoader.exists(npc.def.brain_script_path):
-		return DotResult.fail(
-			DotError.CODE_IO, "That brain script is not here.",
+		return GSResult.fail(
+			GSError.CODE_IO, "That brain script is not here.",
 			npc.def.brain_script_path
 		)
 
 	var script: Resource = s._resource(npc.def.brain_script_path)
 
 	if not (script is GDScript):
-		return DotResult.fail(
-			DotError.CODE_INVALID, "That brain is not a GDScript.",
+		return GSResult.fail(
+			GSError.CODE_INVALID, "That brain is not a GDScript.",
 			npc.def.brain_script_path
 		)
 
 	var made: Variant = (script as GDScript).new()
 
-	if not (made is DotNpcBrain):
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+	if not (made is GSNpcBrain):
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"A brain must extend dot_npc_brain.gd.",
 			npc.def.brain_script_path
 		)
 
 	npc.brain = made
-	(made as DotNpcBrain).bind(npc, s)
+	(made as GSNpcBrain).bind(npc, s)
 	s._pacing.changed(npc, true)
 
-	return DotResult.success(made)
+	return GSResult.success(made)

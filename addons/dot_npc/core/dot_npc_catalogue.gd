@@ -1,25 +1,25 @@
 @tool
-class_name DotNpcCatalogue
+class_name GSNpcCatalogue
 extends Resource
 
 ## Every NPC kind a server offers, and the file an operator edits.
 ## Plain JSON for the person with a text editor; one bad entry does not condemn the file;
-## an exact id match wins a search. Same shape as DotPropCatalogue and DotMapCatalogue.
+## an exact id match wins a search. Same shape as GSPropCatalogue and GSMapCatalogue.
 
 const CHANNEL := "npc.catalogue"
 
 const FORMAT_VERSION := 1
 
-@export var npcs: Array[DotNpcDef] = []
+@export var npcs: Array[GSNpcDef] = []
 
 @export var meta: Dictionary = {}
 
 var _by_id: Dictionary = {}
 
 
-func add(npc: DotNpcDef) -> DotResult:
+func add(npc: GSNpcDef) -> GSResult:
 	if npc == null:
-		return DotResult.fail(DotError.CODE_INVALID, "No NPC to add.")
+		return GSResult.fail(GSError.CODE_INVALID, "No NPC to add.")
 
 	var valid := npc.validate()
 
@@ -30,21 +30,21 @@ func add(npc: DotNpcDef) -> DotResult:
 		_reindex()
 
 	if _by_id.has(npc.id):
-		var existing: DotNpcDef = _by_id[npc.id]
+		var existing: GSNpcDef = _by_id[npc.id]
 		npcs[npcs.find(existing)] = npc
 		_by_id[npc.id] = npc
-		return DotResult.success(npc)
+		return GSResult.success(npc)
 
 	npcs.append(npc)
 	_by_id[npc.id] = npc
 
-	return DotResult.success(npc)
+	return GSResult.success(npc)
 
 
 ## Download every pack this catalogue's NPCs live in. Non-fatal: a failed pack leaves that NPC unspawnable.
 ## At load, not on demand: a spawn request is a player's and must not make this machine fetch,
-## and it keeps the spawn path synchronous. See [method DotContent.ensure_all].
-func ensure_content() -> DotResult:
+## and it keeps the spawn path synchronous. See [method GSContent.ensure_all].
+func ensure_content() -> GSResult:
 	if _by_id.size() != npcs.size():
 		_reindex()
 
@@ -54,15 +54,15 @@ func ensure_content() -> DotResult:
 		if entry != null and String(entry.content_id) != "":
 			ids.append(String(entry.content_id))
 
-	return await DotContent.ensure_all(ids)
+	return await GSContent.ensure_all(ids)
 
 
-func get_npc(id: StringName) -> DotNpcDef:
+func get_npc(id: StringName) -> GSNpcDef:
 	if _by_id.size() != npcs.size():
 		_reindex()
 
 	var found: Variant = _by_id.get(id)
-	return found if found is DotNpcDef else null
+	return found if found is GSNpcDef else null
 
 
 func has(id: StringName) -> bool:
@@ -106,8 +106,8 @@ func categories() -> PackedStringArray:
 	return out
 
 
-func in_category(category: StringName) -> Array[DotNpcDef]:
-	var out: Array[DotNpcDef] = []
+func in_category(category: StringName) -> Array[GSNpcDef]:
+	var out: Array[GSNpcDef] = []
 
 	for npc in npcs:
 		if npc.enabled and npc.category == category:
@@ -116,8 +116,8 @@ func in_category(category: StringName) -> Array[DotNpcDef]:
 	return out
 
 
-func in_faction(faction: StringName) -> Array[DotNpcDef]:
-	var out: Array[DotNpcDef] = []
+func in_faction(faction: StringName) -> Array[GSNpcDef]:
+	var out: Array[GSNpcDef] = []
 
 	for npc in npcs:
 		if npc.enabled and npc.faction == faction:
@@ -127,9 +127,9 @@ func in_faction(faction: StringName) -> Array[DotNpcDef]:
 
 
 ## NPCs whose id or name contains [param text]. An exact id wins outright.
-func search(text: String, limit: int = 30) -> Array[DotNpcDef]:
+func search(text: String, limit: int = 30) -> Array[GSNpcDef]:
 	var needle := text.strip_edges().to_lower()
-	var out: Array[DotNpcDef] = []
+	var out: Array[GSNpcDef] = []
 
 	if needle == "":
 		return out
@@ -165,8 +165,8 @@ func to_dictionary() -> Dictionary:
 
 ## Reads a catalogue, keeping the good entries and reporting the bad ones.
 ## One bad entry must not leave the operator with no NPCs rather than thirty-nine.
-static func from_dictionary(data: Dictionary, rejected: PackedStringArray = PackedStringArray()) -> DotNpcCatalogue:
-	var cat := DotNpcCatalogue.new()
+static func from_dictionary(data: Dictionary, rejected: PackedStringArray = PackedStringArray()) -> GSNpcCatalogue:
+	var cat := GSNpcCatalogue.new()
 	var rejected_before := rejected.size()
 
 	var raw: Variant = data.get("npcs", [])
@@ -177,7 +177,7 @@ static func from_dictionary(data: Dictionary, rejected: PackedStringArray = Pack
 				rejected.append("not an object")
 				continue
 
-			var npc := DotNpcDef.from_dictionary(entry as Dictionary)
+			var npc := GSNpcDef.from_dictionary(entry as Dictionary)
 			var added := cat.add(npc)
 
 			if not added.ok:
@@ -186,7 +186,7 @@ static func from_dictionary(data: Dictionary, rejected: PackedStringArray = Pack
 	# Said here whatever the caller does with [param rejected]: the operator who can fix the
 	# entry reads this, and a dropped NPC otherwise surfaces as "does not exist" much later.
 	if rejected.size() > rejected_before:
-		DotLog.warn(CHANNEL, "some npc entries were dropped", {
+		GSLog.warn(CHANNEL, "some npc entries were dropped", {
 			"count": rejected.size() - rejected_before,
 			"entries": ", ".join(rejected.slice(rejected_before)),
 		})

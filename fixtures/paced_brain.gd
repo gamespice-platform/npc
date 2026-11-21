@@ -69,7 +69,7 @@ func _think_now(delta: float) -> void:
 	if others.is_empty():
 		return
 
-	var other: DotNpcInstance = others[absi(hash([npc.seed, thoughts, 3])) % others.size()]
+	var other: GSNpcInstance = others[absi(hash([npc.seed, thoughts, 3])) % others.size()]
 
 	if other == npc or other.brain == null:
 		return
@@ -81,7 +81,7 @@ func _think_now(delta: float) -> void:
 				_log(["stagger", npc.seed, other.seed])
 		3:
 			if other.brain.drive == null:
-				var drive := DotNpcDrive.new()
+				var drive := GSNpcDrive.new()
 				drive.grab(&"p")
 				other.brain.drive = drive
 				_log(["drive", npc.seed, other.seed])
@@ -96,11 +96,11 @@ func _think_now(delta: float) -> void:
 		7:
 			var made: Variant = director.call(&"spawn", npc.def.id, npc.position() + Vector3(0.5, 0, 0.5))
 			if made != null:
-				_log(["spawn", npc.seed, (made as DotNpcInstance).seed])
+				_log(["spawn", npc.seed, (made as GSNpcInstance).seed])
 		8:
 			if drive == null:
 				# Its own pacing changes during its own turn.
-				var mine := DotNpcDrive.new()
+				var mine := GSNpcDrive.new()
 				mine.grab(&"q")
 				drive = mine
 				_log(["self-drive", npc.seed])

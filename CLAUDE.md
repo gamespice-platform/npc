@@ -2,13 +2,13 @@
 
 **What an NPC is.** A catalogue of definitions, spawning with a population budget, health and damage, a perception layer that commits to a target, and navigation generated from the constants a code-built map was drawn from. 3D and 2D (the XZ plane).
 
-Also requires **GameSpice Profile** (`DotProfileSet`, `DotProfile`, `DotProfileRuntime`, split from GameSpice Core): link `addons/dot_profile` next to `addons/dot_core`.
+Also requires **GameSpice Profile** (`GSProfileSet`, `GSProfile`, `GSProfileRuntime`, split from GameSpice Core): link `addons/dot_profile` next to `addons/dot_core`.
 
 Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is specific to NPCs. How one decides is dot-npc-ai; population and pacing are dot-npc-ai-director.
 
 **Depends on GameSpice Core and nothing else.** Not GameSpice Net, GameSpice Combat or GameSpice Map: each is a seam a host wires up, and naming any of them would make this addon fail to parse in a project that does not have it.
 
-Profiles: `DotNpcProfiles` (the `npc` kind) offers `profile_schemas()`, so dot-core's `tools/profile_check.gd` (dot-ci `profiles: true`) validates a repo's `cfg/**/npc/*.yml` with no `--schema` script (API 4).
+Profiles: `GSNpcProfiles` (the `npc` kind) offers `profile_schemas()`, so dot-core's `tools/profile_check.gd` (dot-ci `profiles: true`) validates a repo's `cfg/**/npc/*.yml` with no `--schema` script (API 4).
 
 ## Read before
 
@@ -22,14 +22,14 @@ Profiles: `DotNpcProfiles` (the `npc` kind) offers `profile_schemas()`, so dot-c
 
 | Path | What |
 | --- | --- |
-| `addons/dot_npc/core/` | `DotNpcDef` (one kind, checkable without loading a scene), `DotNpcCatalogue` (JSON an operator edits), `DotNpcLimits` (a `DotConfig`), `DotNpcInstance` (one NPC in the world) |
-| `addons/dot_npc/runtime/` | `DotNpcSpawner` (the node a game adds: spawn, sense, think, hurt, reclaim), `DotNpcSenses`, `DotNpcBrain` (extended by path) |
-| `addons/dot_npc/nav/` | `DotNpcNavData` (points, areas, flags, cover, digest), `DotNpcNavBuilder`, `DotNpcNavFilter`, `DotNpcNavGraph` (A*, smoothing, partial paths; helpers `DotNpcNavLine` straight-walk and cut edges, `DotNpcNavSmooth` smoothing and leg memo, `DotNpcNavIndex` builder cell lookups), `DotNpcPath`, `DotNpcNavPrune` (prune against physics: nudge, ledge columns, loose joins, `required` bridges) |
-| `addons/dot_npc/view/` | `DotNpcGibs`: cuts a severed limb out of a skinned mesh, stump and blood (drawn only) |
-| `addons/dot_npc/runtime/dot_npc_limbs.gd` | `DotNpcLimbs`: shootable limbs on a body (regions from bones, health, `mask()` for `DotNpcNetSync.limb_specs()`, `speed_scale()`); tuned by `limbs:` in `cfg/addons/dot-npc/*.yml` |
-| `addons/dot_npc/runtime/dot_npc_hover.gd` | `DotNpcHover`: a jetpack as a state machine (lift, cruise, hover, land, fuel, disable) that returns the velocity to move at; holds no node and does no pathing |
-| `addons/dot_npc/core/dot_npc_gore.gd` | `DotNpcGore`: the process-wide gore dial (`level` 0 off, 1 stumps, 2 gibs and spray, 3 softer limbs and heavier spray; `max_gibs`). A game maps its cvars `gore_level` / `gore_max_gibs` / `gore_max_wounds` onto it; level 0 makes every limb call a no-op. **Replication design**: no gore level crosses the wire. The server's `level` decides whether a limb comes off, which reaches clients as the limb mask; `view_cap` is the player's own ceiling (their `gore` setting) and only trims what a machine draws (`drawn_level()`), so a client can never show more than the server allowed. `DotNpcGibs.add_wound` / `add_pool` draw pooled wound marks and floor blood, client-only, capped by `max_wounds` |
-| `addons/dot_npc/net/` | `DotNpcNetSync`: what replicates, as strings; never names GameSpice Net |
+| `addons/dot_npc/core/` | `GSNpcDef` (one kind, checkable without loading a scene), `GSNpcCatalogue` (JSON an operator edits), `GSNpcLimits` (a `GSConfig`), `GSNpcInstance` (one NPC in the world) |
+| `addons/dot_npc/runtime/` | `GSNpcSpawner` (the node a game adds: spawn, sense, think, hurt, reclaim), `GSNpcSenses`, `GSNpcBrain` (extended by path) |
+| `addons/dot_npc/nav/` | `GSNpcNavData` (points, areas, flags, cover, digest), `GSNpcNavBuilder`, `GSNpcNavFilter`, `GSNpcNavGraph` (A*, smoothing, partial paths; helpers `GSNpcNavLine` straight-walk and cut edges, `GSNpcNavSmooth` smoothing and leg memo, `GSNpcNavIndex` builder cell lookups), `GSNpcPath`, `GSNpcNavPrune` (prune against physics: nudge, ledge columns, loose joins, `required` bridges) |
+| `addons/dot_npc/view/` | `GSNpcGibs`: cuts a severed limb out of a skinned mesh, stump and blood (drawn only) |
+| `addons/dot_npc/runtime/dot_npc_limbs.gd` | `GSNpcLimbs`: shootable limbs on a body (regions from bones, health, `mask()` for `GSNpcNetSync.limb_specs()`, `speed_scale()`); tuned by `limbs:` in `cfg/addons/dot-npc/*.yml` |
+| `addons/dot_npc/runtime/dot_npc_hover.gd` | `GSNpcHover`: a jetpack as a state machine (lift, cruise, hover, land, fuel, disable) that returns the velocity to move at; holds no node and does no pathing |
+| `addons/dot_npc/core/dot_npc_gore.gd` | `GSNpcGore`: the process-wide gore dial (`level` 0 off, 1 stumps, 2 gibs and spray, 3 softer limbs and heavier spray; `max_gibs`). A game maps its cvars `gore_level` / `gore_max_gibs` / `gore_max_wounds` onto it; level 0 makes every limb call a no-op. **Replication design**: no gore level crosses the wire. The server's `level` decides whether a limb comes off, which reaches clients as the limb mask; `view_cap` is the player's own ceiling (their `gore` setting) and only trims what a machine draws (`drawn_level()`), so a client can never show more than the server allowed. `GSNpcGibs.add_wound` / `add_pool` draw pooled wound marks and floor blood, client-only, capped by `max_wounds` |
+| `addons/dot_npc/net/` | `GSNpcNetSync`: what replicates, as strings; never names GameSpice Net |
 | `fixtures/` | bodies (3D and 2D) and brains for the suite, written the pack-safe way |
 | `examples/npc_selftest.tscn` | the suite |
 
@@ -43,7 +43,7 @@ Profiles: `DotNpcProfiles` (the `npc` kind) offers `profile_schemas()`, so dot-c
 **Definitions and runtime**
 
 - A brain is named by PATH in the definition and extends by path, never `class_name`: a mounted pack's globals do not register. [runtime](docs/runtime.md#an-npc-is-a-definition-not-a-scene)
-- NPCs are server-authoritative and never predicted. Never write a received position onto something this machine simulates (`DotNpcNetSync.apply`). [runtime](docs/runtime.md#server-authoritative-and-not-predicted)
+- NPCs are server-authoritative and never predicted. Never write a received position onto something this machine simulates (`GSNpcNetSync.apply`). [runtime](docs/runtime.md#server-authoritative-and-not-predicted)
 - `face(d)` is `look_at(position + d)`; `yaw_of` is `rotation.y`. Change one and the round-trip check must still pass. [runtime](docs/runtime.md#face-and-facing-agree)
 - Perception commits: `switch_ratio` 0.6, `commitment_grace` 3 s from the last sighting, a perceived rival ends the grace, hearing before sight. [runtime](docs/runtime.md#perception-commits-and-that-is-the-whole-class)
 - Sight lines start at `eye_height`, never the feet. [runtime](docs/runtime.md#perception-commits-and-that-is-the-whole-class)
@@ -65,7 +65,7 @@ Profiles: `DotNpcProfiles` (the `npc` kind) offers `profile_schemas()`, so dot-c
 - A partial path never has the goal appended; a finished partial path waits for its interval; unreachable goals are answered from the component labels. [navigation](docs/navigation.md#partial-paths-because-standing-still-is-not-an-answer)
 - Indexed lookups must return the brute-force scan's answer, ties included (lowest index wins). [navigation](docs/navigation.md#at-scale)
 - `find_path` searches with `AStar3D` (one per filter signature); the script A* is the reference (`use_native_search = false`) and must find paths as short. [navigation](docs/navigation.md#at-scale)
-- `can_walk_straight` probes no wider than 0.75 spacings; a stuck follower calls `DotNpcPath.go_rough` for unsmoothed corners; `smooth_horizon` limits smoothing to a path's head. [navigation](docs/navigation.md#at-scale)
+- `can_walk_straight` probes no wider than 0.75 spacings; a stuck follower calls `GSNpcPath.go_rough` for unsmoothed corners; `smooth_horizon` limits smoothing to a path's head. [navigation](docs/navigation.md#at-scale)
 - The spawner holds what it loads; a host calls `warm()` at map load. `face()` skips a non-finite or immovable position. [runtime](docs/runtime.md#a-kinds-resources-are-loaded-once-and-held)
 - `PackedInt32Array` in a dictionary or array is a copy; append through a local and write it back. [history](docs/history.md)
 
@@ -73,21 +73,21 @@ Profiles: `DotNpcProfiles` (the `npc` kind) offers `profile_schemas()`, so dot-c
 
 | To change | Where |
 | --- | --- |
-| What an NPC is | `DotNpcDef` in a `DotNpcCatalogue` |
-| An NPC in a 2D world | `DotNpcSpawner.spawn_2d`, plus `two_dimensional`. See game-hungario |
-| How one decides | `DotNpcBrain` subclass, named by path in the definition |
-| How many there may be | `DotNpcLimits`, layered like every `DotConfig` |
-| What an NPC can perceive | `DotNpcSenses.switch_ratio` / `commitment_grace`, and the per-definition sight, hearing and `eye_height` |
-| What it perceives | `DotNpcSpawner.set_candidates`: id, position, faction, loudness |
-| Where it may stand | `DotNpcNavData`, generated by `DotNpcNavBuilder` from the map's constants |
-| What one area of the map costs to cross | `DotNpcNavFilter.set_area_cost`, per NPC |
-| What one kind of NPC cannot traverse | `DotNpcDef.nav_exclude_flags` |
-| Whether paths are smoothed or may stop short | `DotNpcSpawner.smooth_paths` / `allow_partial_paths` |
-| Whether repaths run on worker threads | `DotNpcSpawner.path_workers`, from GameSpice Server's `npc_workers()` (`sv_threads_npc`); 0 is inline. `deferred_paths` answers a tick later at any count, so 0 and N workers give the same run. [navigation](docs/navigation.md#at-scale) |
-| Where cover is | `DotNpcNavBuilder.generate_cover` / `cover_range`, or `DotNpcNavData.add_cover` from a generator that has the geometry |
-| Where NPCs are added | `DotNpcSpawner.world_ref`, a `DotNodeRef` |
-| What replicates | `DotNpcNetSync.specs()`, resolved by the game's bridge |
-| What an NPC's choices are seeded from | `DotNpcSpawner.seed_base` (the session) and `seed_source` (the game's own number, e.g. its entity id) |
+| What an NPC is | `GSNpcDef` in a `GSNpcCatalogue` |
+| An NPC in a 2D world | `GSNpcSpawner.spawn_2d`, plus `two_dimensional`. See game-hungario |
+| How one decides | `GSNpcBrain` subclass, named by path in the definition |
+| How many there may be | `GSNpcLimits`, layered like every `GSConfig` |
+| What an NPC can perceive | `GSNpcSenses.switch_ratio` / `commitment_grace`, and the per-definition sight, hearing and `eye_height` |
+| What it perceives | `GSNpcSpawner.set_candidates`: id, position, faction, loudness |
+| Where it may stand | `GSNpcNavData`, generated by `GSNpcNavBuilder` from the map's constants |
+| What one area of the map costs to cross | `GSNpcNavFilter.set_area_cost`, per NPC |
+| What one kind of NPC cannot traverse | `GSNpcDef.nav_exclude_flags` |
+| Whether paths are smoothed or may stop short | `GSNpcSpawner.smooth_paths` / `allow_partial_paths` |
+| Whether repaths run on worker threads | `GSNpcSpawner.path_workers`, from GameSpice Server's `npc_workers()` (`sv_threads_npc`); 0 is inline. `deferred_paths` answers a tick later at any count, so 0 and N workers give the same run. [navigation](docs/navigation.md#at-scale) |
+| Where cover is | `GSNpcNavBuilder.generate_cover` / `cover_range`, or `GSNpcNavData.add_cover` from a generator that has the geometry |
+| Where NPCs are added | `GSNpcSpawner.world_ref`, a `GSNodeRef` |
+| What replicates | `GSNpcNetSync.specs()`, resolved by the game's bridge |
+| What an NPC's choices are seeded from | `GSNpcSpawner.seed_base` (the session) and `seed_source` (the game's own number, e.g. its entity id) |
 | Who a kill belongs to | the `by` on `damage()` / `report_death()` |
 
 Deliberately not here: decisions (dot-npc-ai), a population director, animation, attacks and damage types (dot-combat), flying and swimming, crowd avoidance, dynamic obstacles, sniper spots. [runtime](docs/runtime.md#deliberately-not-here), [navigation](docs/navigation.md#not-here)

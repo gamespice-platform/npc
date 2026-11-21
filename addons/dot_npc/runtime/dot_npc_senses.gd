@@ -1,4 +1,4 @@
-class_name DotNpcSenses
+class_name GSNpcSenses
 extends RefCounted
 
 ## What an NPC can perceive, and what it has committed to chasing, with hysteresis: "nearest visible enemy" every
@@ -49,8 +49,8 @@ var now: float = 0.0
 var sight_checks: int = 0
 var los_casts: int = 0
 
-## Runs [DotNpcPerception]'s whole pass (ranking and [method decide]) in dot-sim's native
-## `DotSimSenses` when that library is loaded: the same targets, timestamps, rays and counters, to
+## Runs [GSNpcPerception]'s whole pass (ranking and [method decide]) in dot-sim's native
+## `GSSimSenses` when that library is loaded: the same targets, timestamps, rays and counters, to
 ## the bit. Off, or no library (the web), keeps this script. A subclass that overrides [method decide]
 ## or [method _perceives_at] always keeps the script.
 var native_enabled: bool = false
@@ -65,7 +65,7 @@ var native_mismatches: int = 0
 ## NPCs decided by the native pass (or checked against it under [member native_verify]).
 var native_decided: int = 0
 
-const NATIVE_CLASS := &"DotSimSenses"
+const NATIVE_CLASS := &"GSSimSenses"
 
 var _native: Object = null
 var _ray := PhysicsRayQueryParameters3D.new()
@@ -117,7 +117,7 @@ func sight_blocked(from: Vector3, to: Vector3) -> bool:
 
 ## Whether [param npc] can perceive [param cand] right now, ignoring commitment.
 ## Sight is range + cone + optional occlusion; hearing is range only, so there is no perfect blind spot behind.
-func perceives(npc: DotNpcInstance, cand: Candidate) -> bool:
+func perceives(npc: GSNpcInstance, cand: Candidate) -> bool:
 	if npc == null or cand == null or not npc.is_alive() or npc.def == null:
 		return false
 
@@ -128,7 +128,7 @@ func perceives(npc: DotNpcInstance, cand: Candidate) -> bool:
 
 
 ## [method perceives] past the faction test, with the offset already taken.
-func _perceives_at(npc: DotNpcInstance, cand: Candidate, to_target: Vector3) -> bool:
+func _perceives_at(npc: GSNpcInstance, cand: Candidate, to_target: Vector3) -> bool:
 	sight_checks += 1
 
 	var distance := to_target.length()
@@ -160,7 +160,7 @@ func _perceives_at(npc: DotNpcInstance, cand: Candidate, to_target: Vector3) -> 
 	return true
 
 
-func _has_line_of_sight(npc: DotNpcInstance, cand: Candidate) -> bool:
+func _has_line_of_sight(npc: GSNpcInstance, cand: Candidate) -> bool:
 	if not (npc.node is Node3D):
 				# A 2D NPC has no 3D physics world to cast through, and "blocked" would blind it permanently.
 				# A 2D game wanting occlusion sets `line_of_sight` false on the definition and tests itself.
@@ -176,7 +176,7 @@ func _has_line_of_sight(npc: DotNpcInstance, cand: Candidate) -> bool:
 
 	los_casts += 1
 
-	# One query reused (main thread only), from the eyes: see [member DotNpcDef.eye_height].
+	# One query reused (main thread only), from the eyes: see [member GSNpcDef.eye_height].
 	_ray.from = npc.position() + Vector3.UP * npc.def.eye_height
 	_ray.to = cand.position
 	_ray.collision_mask = occlusion_mask
@@ -193,7 +193,7 @@ func _has_line_of_sight(npc: DotNpcInstance, cand: Candidate) -> bool:
 ## Picks or keeps a target for [param npc]. Returns its id, or empty for none.
 ## [param now_arg] is simulated seconds (kept in [member now]). Candidates within reach are tested nearest first, at most
 ## [param candidate_cap], plus the committed one.
-func update_target(npc: DotNpcInstance, candidates: Array, now_arg: float,
+func update_target(npc: GSNpcInstance, candidates: Array, now_arg: float,
 		candidate_cap: int = 32) -> StringName:
 	if npc == null or not npc.is_alive() or npc.def == null:
 		return &""
@@ -252,8 +252,8 @@ class Packed:
 		return -1 if id == &"" else int(_index.get(id, -1))
 
 
-## How far [param npc] sees, after its [member DotNpcInstance.sight_scale].
-static func reach_of(npc: DotNpcInstance) -> float:
+## How far [param npc] sees, after its [member GSNpcInstance.sight_scale].
+static func reach_of(npc: GSNpcInstance) -> float:
 	return npc.def.sight_range * maxf(npc.sight_scale, 0.0)
 
 
@@ -313,7 +313,7 @@ static func rank_many(from: int, to: int, here: PackedVector3Array, sight: Packe
 ## Commits [param npc] given [param order] from [method rank] over [param candidates]:
 ## tests in order until one is perceived (the nearest, so nothing further can be better), and
 ## the committed candidate ([param held], its index or -1) too. Main thread: it casts rays.
-func decide(npc: DotNpcInstance, candidates: Array, order: PackedInt32Array, held: int,
+func decide(npc: GSNpcInstance, candidates: Array, order: PackedInt32Array, held: int,
 		now_arg: float) -> StringName:
 	now = now_arg
 	if npc == null or not npc.is_alive() or npc.def == null:
@@ -365,7 +365,7 @@ func decide(npc: DotNpcInstance, candidates: Array, order: PackedInt32Array, hel
 
 
 ## The commitment half of [method decide]: stickiness, grace and the first commitment.
-func _commit(npc: DotNpcInstance, best: Candidate, best_distance: float, committed: Candidate,
+func _commit(npc: GSNpcInstance, best: Candidate, best_distance: float, committed: Candidate,
 		committed_distance: float) -> StringName:
 	if committed != null:
 		npc.target_seen_at = now
@@ -415,7 +415,7 @@ func _commit(npc: DotNpcInstance, best: Candidate, best_distance: float, committ
 ## [method decide] once the held target is perceived: the first perceived in [param order] up
 ## to the last rival nearer than switch_ratio of its distance, which is what the full pass's
 ## first perceived would be wherever the answer could differ.
-func _decide_held(npc: DotNpcInstance, candidates: Array, order: PackedInt32Array, held: int,
+func _decide_held(npc: GSNpcInstance, candidates: Array, order: PackedInt32Array, held: int,
 		held_cand: Candidate) -> StringName:
 	var here := npc.position()
 	var limit := here.distance_to(held_cand.position) * switch_ratio
@@ -447,7 +447,7 @@ func _decide_held(npc: DotNpcInstance, candidates: Array, order: PackedInt32Arra
 
 ## The native pass, configured with these settings, or null when it is off, not loaded, or this is a subclass.
 func native() -> Object:
-	if not native_enabled or get_script() != DotNpcSenses or not ClassDB.class_exists(NATIVE_CLASS):
+	if not native_enabled or get_script() != GSNpcSenses or not ClassDB.class_exists(NATIVE_CLASS):
 		return null
 
 	if _native == null:

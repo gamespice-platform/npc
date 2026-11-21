@@ -1,5 +1,5 @@
 @tool
-class_name DotNpcDef
+class_name GSNpcDef
 extends Resource
 
 ## One kind of NPC a game can spawn.
@@ -47,7 +47,7 @@ enum Weight {
 
 @export var weight: Weight = Weight.NORMAL
 
-## What one of these costs against a population budget. See [DotNpcLimits].
+## What one of these costs against a population budget. See [GSNpcLimits].
 ## Separate from [member weight] so one kind can be made expensive without reclassifying it.
 @export_range(1, 100, 1) var cost: int = 1
 
@@ -79,7 +79,7 @@ enum Weight {
 
 @export_group("Navigation")
 
-## Navigation flags this kind of NPC cannot traverse. See [enum DotNpcNavData.Flag].
+## Navigation flags this kind of NPC cannot traverse. See [enum GSNpcNavData.Flag].
 ## On the definition, not the graph: whether a crouch tunnel is a way through depends on the
 ## walker, and one graph serves every NPC. Zero goes anywhere the graph goes.
 @export_flags(
@@ -105,8 +105,8 @@ enum Weight {
 @export var menu: Dictionary = {}
 
 
-static func make(p_id: StringName, p_scene: String) -> DotNpcDef:
-	var npc := DotNpcDef.new()
+static func make(p_id: StringName, p_scene: String) -> GSNpcDef:
+	var npc := GSNpcDef.new()
 	npc.id = p_id
 	npc.scene_path = p_scene
 	npc.display_name = String(p_id).capitalize()
@@ -126,30 +126,30 @@ func sight_half_angle() -> float:
 	return deg_to_rad(sight_half_angle_deg)
 
 
-func validate() -> DotResult:
+func validate() -> GSResult:
 	if id == &"":
-		return DotResult.fail(DotError.CODE_INVALID, "An NPC needs an id.")
+		return GSResult.fail(GSError.CODE_INVALID, "An NPC needs an id.")
 
 	if scene_path == "":
-		return DotResult.fail(
-			DotError.CODE_INVALID, "An NPC needs a scene path.", String(id)
+		return GSResult.fail(
+			GSError.CODE_INVALID, "An NPC needs a scene path.", String(id)
 		)
 
 	if brain_script_path != "" and not brain_script_path.ends_with(".gd"):
 		# Caught here rather than at spawn, because a catalogue is loaded once at boot
 		# and a spawn happens in the middle of a round.
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"brain_script_path must be a path to a .gd script, not a class name.",
 			"%s: %s" % [String(id), brain_script_path]
 		)
 
 	if max_health <= 0.0:
-		return DotResult.fail(
-			DotError.CODE_INVALID, "max_health must be positive.", String(id)
+		return GSResult.fail(
+			GSError.CODE_INVALID, "max_health must be positive.", String(id)
 		)
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 func to_dictionary() -> Dictionary:
@@ -195,8 +195,8 @@ func to_dictionary() -> Dictionary:
 	return out
 
 
-static func from_dictionary(data: Dictionary) -> DotNpcDef:
-	var npc := DotNpcDef.new()
+static func from_dictionary(data: Dictionary) -> GSNpcDef:
+	var npc := GSNpcDef.new()
 
 	npc.id = StringName(str(data.get("id", "")))
 	npc.scene_path = str(data.get("scene", ""))
@@ -231,8 +231,8 @@ static func from_dictionary(data: Dictionary) -> DotNpcDef:
 	return npc
 
 
-## Builds a definition from a loaded `npc` [DotProfile] (see [DotNpcProfiles]).
-static func from_profile(profile: DotProfile) -> DotNpcDef:
+## Builds a definition from a loaded `npc` [GSProfile] (see [GSNpcProfiles]).
+static func from_profile(profile: GSProfile) -> GSNpcDef:
 	var data := profile.values.duplicate(true)
 	data["id"] = profile.id
 	data["extra"] = profile.extra
@@ -263,4 +263,4 @@ func describe() -> Dictionary:
 
 
 func _to_string() -> String:
-	return "DotNpcDef(%s)" % String(id)
+	return "GSNpcDef(%s)" % String(id)

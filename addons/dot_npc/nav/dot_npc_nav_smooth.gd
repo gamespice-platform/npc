@@ -1,18 +1,18 @@
-class_name DotNpcNavSmooth
+class_name GSNpcNavSmooth
 extends RefCounted
 
-## Corner removal for a [DotNpcNavGraph] path and the per-filter memo of legs already tested.
-## Static, with the graph passed in; [method DotNpcNavGraph.smooth_path] is the public door.
+## Corner removal for a [GSNpcNavGraph] path and the per-filter memo of legs already tested.
+## Static, with the graph passed in; [method GSNpcNavGraph.smooth_path] is the public door.
 
 ## Removes the corners a grid put in a path: from each kept waypoint, drop everything up to the furthest one
 ## reachable in a line. [param lookahead] bounds the tests; [param horizon] above 0 smooths only the first points.
 static func smooth_path(
-	g: DotNpcNavGraph, path: PackedVector3Array, corridor: float = -1.0, lookahead: int = 8, horizon: int = 0
+	g: GSNpcNavGraph, path: PackedVector3Array, corridor: float = -1.0, lookahead: int = 8, horizon: int = 0
 ) -> PackedVector3Array:
 	return smooth(g, path, corridor, lookahead, horizon, leg_memo(g, corridor) if path.size() > 2 else null)
 
 
-static func smooth(g: DotNpcNavGraph, path: PackedVector3Array, corridor: float, lookahead: int, horizon: int, legs: Variant) -> PackedVector3Array:
+static func smooth(g: GSNpcNavGraph, path: PackedVector3Array, corridor: float, lookahead: int, horizon: int, legs: Variant) -> PackedVector3Array:
 	if path.size() <= 2:
 		return path
 
@@ -41,7 +41,7 @@ static func smooth(g: DotNpcNavGraph, path: PackedVector3Array, corridor: float,
 
 
 ## Drops every remembered leg: the answers depend on [member straight_width_ratio].
-static func forget_legs(g: DotNpcNavGraph) -> void:
+static func forget_legs(g: GSNpcNavGraph) -> void:
 	for key: String in g._native:
 		var astar: AStar3D = g._native[key]
 		for meta: StringName in astar.get_meta_list():
@@ -51,7 +51,7 @@ static func forget_legs(g: DotNpcNavGraph) -> void:
 
 ## The leg memo for the current filter and [param corridor], or null. It lives on that filter's
 ## [AStar3D], so whatever rebuilds the native graph (a new filter, flags, links) forgets it too.
-static func leg_memo(g: DotNpcNavGraph, corridor: float) -> Variant:
+static func leg_memo(g: GSNpcNavGraph, corridor: float) -> Variant:
 	if not g.memo_legs or not g.use_native_search or not g.is_ready():
 		return null
 
@@ -59,14 +59,14 @@ static func leg_memo(g: DotNpcNavGraph, corridor: float) -> Variant:
 	var key := &"dot_legs" if corridor < 0.0 else StringName("dot_legs_%s" % corridor)
 	var memo: Dictionary = astar.get_meta(key, {})
 
-	if memo.is_empty() or int(memo.get(&"count", 0)) > DotNpcNavGraph.LEG_MEMO_MAX:
+	if memo.is_empty() or int(memo.get(&"count", 0)) > GSNpcNavGraph.LEG_MEMO_MAX:
 		memo = {&"count": 0}
 		astar.set_meta(key, memo)
 
 	return memo
 
 
-static func leg_walkable(g: DotNpcNavGraph, memo: Variant, a: Vector3, b: Vector3, corridor: float) -> bool:
+static func leg_walkable(g: GSNpcNavGraph, memo: Variant, a: Vector3, b: Vector3, corridor: float) -> bool:
 	if memo == null:
 		return g.can_walk_straight(a, b, corridor)
 

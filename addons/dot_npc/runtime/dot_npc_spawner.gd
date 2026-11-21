@@ -1,28 +1,28 @@
 @tool
-class_name DotNpcSpawner
+class_name GSNpcSpawner
 extends Node
 
 ## Spawns, senses, thinks, hurts and reclaims. The node a game with NPCs adds.
-## Server-authoritative, NPCs not predicted (pathfinder and solver are not reproducible); see [DotNpcNetSync].
+## Server-authoritative, NPCs not predicted (pathfinder and solver are not reproducible); see [GSNpcNetSync].
 ## It does not own the tick: the game calls [method tick] at its fixed rate, so a suite can step it a thousand times.
 
 const CHANNEL := "npc"
 
 ## An NPC entered the world.
-signal spawned(npc: DotNpcInstance)
+signal spawned(npc: GSNpcInstance)
 
 ## One left it. [param reason] is one of the REASON_* constants.
-signal removed(npc: DotNpcInstance, reason: StringName)
+signal removed(npc: GSNpcInstance, reason: StringName)
 
 ## An NPC took damage. Fired after the health has already been reduced.
-signal damaged(npc: DotNpcInstance, amount: float, by: StringName)
+signal damaged(npc: GSNpcInstance, amount: float, by: StringName)
 
 ## Its health reached zero. Fired before [signal removed], while the node still exists.
 ## Separate from [signal removed]: dying scores and drops loot, reclaiming is a director tidying up.
-signal died(npc: DotNpcInstance, by: StringName)
+signal died(npc: GSNpcInstance, by: StringName)
 
 ## An NPC committed to something new, or let go. [param target] may be empty.
-signal target_changed(npc: DotNpcInstance, target: StringName)
+signal target_changed(npc: GSNpcInstance, target: StringName)
 
 ## A spawn was refused, and why.
 signal refused(owner_id: StringName, npc_id: StringName, reason: String)
@@ -35,14 +35,14 @@ const REASON_ADMIN := &"admin"
 
 @export_group("Content")
 
-@export var catalogue: DotNpcCatalogue = null
+@export var catalogue: GSNpcCatalogue = null
 
-@export var limits: DotNpcLimits = null
+@export var limits: GSNpcLimits = null
 
 @export_group("Wiring")
 
 ## Where spawned NPCs are added. Defaults to this node.
-@export var world_ref: DotNodeRef = null
+@export var world_ref: GSNodeRef = null
 
 @export_group("Role")
 
@@ -51,18 +51,18 @@ const REASON_ADMIN := &"admin"
 @export var authoritative: bool = false
 
 ## Whether this spawner serves a 2D world.
-## One flag set beside `authoritative`: a spawner serves one world. [method spawn_group] and [DotNpcDirector]
+## One flag set beside `authoritative`: a spawner serves one world. [method spawn_group] and [GSNpcDirector]
 ## read it; [method spawn] and [method spawn_2d] stay separate, since a Vector3 caller and a Vector2 caller differ.
 @export var two_dimensional: bool = false
 
 @export_group("Randomness")
 
-## The session's seed for NPC choices: every NPC's [member DotNpcInstance.seed] is derived from it.
+## The session's seed for NPC choices: every NPC's [member GSNpcInstance.seed] is derived from it.
 ## A game sets it from its own session or match seed so a replay can be given the recorded run's.
 ## Left at zero, the same spawns make the same choices, which is what a suite wants.
 @export var seed_base: int = 0
 
-## The game's own stable number for an NPC, or none. `func(npc: DotNpcInstance) -> int`.
+## The game's own stable number for an NPC, or none. `func(npc: GSNpcInstance) -> int`.
 ## Called once per spawn before the brain is bound; usually the entity id. Zero or no callable falls back to the
 ## spawn count. A [Callable] because naming GameSpice Entity would break parsing without it. Never return `get_instance_id()`.
 var seed_source: Callable = Callable()
@@ -80,7 +80,7 @@ var seed_source: Callable = Callable()
 @export var smooth_horizon: int = 0
 
 ## Walk toward an unreachable goal rather than standing still.
-## On, as in [method DotNpcBrain.steer_along_path]: an NPC that stops dead when the generator missed a corner
+## On, as in [method GSNpcBrain.steer_along_path]: an NPC that stops dead when the generator missed a corner
 ## is a bug nobody can see the cause of.
 @export var allow_partial_paths: bool = true
 
@@ -90,7 +90,7 @@ var seed_source: Callable = Callable()
 @export_flags_3d_physics var occlusion_mask: int = 1
 
 ## Navigation for the map currently loaded, or null for a game that paths its own way.
-var nav: DotNpcNavGraph = null
+var nav: GSNpcNavGraph = null
 
 ## Path -> the scene or brain script loaded from it, held for as long as the spawner lives.
 ## See [method warm].
@@ -99,9 +99,9 @@ var _held: Dictionary = {}
 ## Shared perception. One object, because its tuning is the world's rather than an
 ## NPC's — two NPCs that gave up on a target at different ranges would be a game
 ## design decision, and it belongs in the definition, not in a second senses object.
-var senses: DotNpcSenses = null
+var senses: GSNpcSenses = null
 
-## Worker threads ranking candidates for a perception pass ([method DotNpcSenses.rank], over
+## Worker threads ranking candidates for a perception pass ([method GSNpcSenses.rank], over
 ## packed data); rays and commitment stay on this thread. 0 inline, -1 automatic. A host copies
 ## its own setting here (GameSpice Server's [code]sv_threads_npc[/code]); off on a machine without threads.
 var sense_workers: int = 0
@@ -123,7 +123,7 @@ var repath_interval: float = 1.5
 ## one at its quarry's heels. 0 is [member repath_interval] alone.
 var repath_interval_per_m: float = 0.0
 
-## Worker threads answering a tick's repaths together ([method DotNpcNavGraph.find_paths]).
+## Worker threads answering a tick's repaths together ([method GSNpcNavGraph.find_paths]).
 ## 0 searches inline. Above 0 (-1 automatic) a repath is queued and answered after every brain has thought,
 ## so that think follows the old path. A host copies GameSpice Server's `sv_threads_npc` here.
 var path_workers: int = 0
@@ -132,22 +132,22 @@ var path_workers: int = 0
 ## gets the same paths at any worker count. Off, 0 workers searches inline, a tick earlier than pooled.
 var deferred_paths: bool = false
 
-## Worker threads for the decide step of brains that [method DotNpcBrain.splits_think] and are thread safe.
+## Worker threads for the decide step of brains that [method GSNpcBrain.splits_think] and are thread safe.
 ## 0 decides inline. The result is identical either way: apply runs in NPC order after the join.
 var think_workers: int = 0
 
-## [member think_workers] when set, else [member DotNpcLimits.think_workers].
+## [member think_workers] when set, else [member GSNpcLimits.think_workers].
 func effective_think_workers() -> int:
 	if think_workers != 0 or limits == null:
 		return think_workers
 	return limits.think_workers
 
 
-## Count the ticks of brains that [method DotNpcBrain.paces] in one batch per tick, and call only the ones due
-## (see [DotNpcPacing]). Off, every brain is called every tick and counts for itself. Same thoughts either way.
+## Count the ticks of brains that [method GSNpcBrain.paces] in one batch per tick, and call only the ones due
+## (see [GSNpcPacing]). Off, every brain is called every tick and counts for itself. Same thoughts either way.
 var pacing: bool = false
 
-## Hold the pacing natively (dot-sim's `DotSimThinkPacer`) when it is loaded; the script pacer otherwise.
+## Hold the pacing natively (dot-sim's `GSSimThinkPacer`) when it is loaded; the script pacer otherwise.
 var pacing_native: bool = true
 
 ## Check every native pacer answer bit for bit against the script pacer ([member pacing_mismatches]); for suites.
@@ -159,13 +159,13 @@ var pacing_mismatches: int = 0
 
 
 # The helpers by uid, not by name: each names this class back, and a script loop stays in memory
-# for good (Godot 4.7). Their classes: DotNpcPathing, DotNpcPacing, DotNpcPerception, DotNpcSpawning.
+# for good (Godot 4.7). Their classes: GSNpcPathing, GSNpcPacing, GSNpcPerception, GSNpcSpawning.
 var _pathing: RefCounted = load("uid://b0h67pyeqben").new(self)
 var _pacing: RefCounted = load("uid://dvdkgpmjthhws").new(self)
 var _perception: RefCounted = load("uid://cl46tpccxr78f").new(self)
 var _spawning: RefCounted = load("uid://bsyirk2646i14").new(self)
 
-## Instance id -> DotNpcInstance.
+## Instance id -> GSNpcInstance.
 var _npcs: Dictionary = {}
 
 ## Kind id -> how many of that kind are alive. Kept rather than counted, because the
@@ -205,28 +205,28 @@ func _ready() -> void:
 	if Engine.is_editor_hint():
 		return
 
-	limits = limits if limits != null else DotNpcLimits.new()
-	senses = senses if senses != null else DotNpcSenses.new()
+	limits = limits if limits != null else GSNpcLimits.new()
+	senses = senses if senses != null else GSNpcSenses.new()
 
 	senses.occlusion_mask = occlusion_mask
 
 	var valid := limits.validate()
 
 	if not valid.ok:
-		DotLog.warn(CHANNEL, "npc limits are not usable", {"why": valid.error.message})
+		GSLog.warn(CHANNEL, "npc limits are not usable", {"why": valid.error.message})
 
 
 ## Adopts navigation for the map now loaded. Null clears it.
 ## Called on every map change: navigation is per map, and a stale graph walks NPCs through walls,
 ## which is worse than none.
-func set_nav_data(data: DotNpcNavData) -> DotResult:
+func set_nav_data(data: GSNpcNavData) -> GSResult:
 	_pathing.reset()
 
 	if data == null:
 		nav = null
-		return DotResult.success(null)
+		return GSResult.success(null)
 
-	var graph := DotNpcNavGraph.new()
+	var graph := GSNpcNavGraph.new()
 	var built := graph.rebuild(data)
 
 		# Logged here, where a nav file meets the running server. Refused is WARN (NPCs walk straight at goals;
@@ -234,20 +234,20 @@ func set_nav_data(data: DotNpcNavData) -> DotResult:
 		# by whether navigation loaded at all.
 	if not built.ok:
 		nav = null
-		DotLog.warn(CHANNEL, "navigation refused; npcs will walk straight at goals", {
+		GSLog.warn(CHANNEL, "navigation refused; npcs will walk straight at goals", {
 			"map": String(data.map_id), "why": built.error.message,
 		})
 		return built.wrap("Navigation for this map was refused.")
 
 	nav = graph
 
-	DotLog.info(CHANNEL, "navigation adopted", {
+	GSLog.info(CHANNEL, "navigation adopted", {
 		"map": String(data.map_id),
 		"points": data.point_count(),
 		"edges": data.edge_count(),
 	})
 
-	return DotResult.success(nav)
+	return GSResult.success(nav)
 
 
 func has_nav() -> bool:
@@ -255,9 +255,9 @@ func has_nav() -> bool:
 
 
 ## The next point [param npc] should walk toward to reach [param goal].
-## Called by [DotNpcBrain.steer_along_path]. Recomputes the path when drifted or expired, and returns
+## Called by [GSNpcBrain.steer_along_path]. Recomputes the path when drifted or expired, and returns
 ## the goal itself when there is no navigation, which is the documented fallback.
-func path_toward(npc: DotNpcInstance, path: DotNpcPath, goal: Vector3) -> Vector3:
+func path_toward(npc: GSNpcInstance, path: GSNpcPath, goal: Vector3) -> Vector3:
 	return _pathing.path_toward(npc, path, goal)
 
 
@@ -275,7 +275,7 @@ func set_candidates(candidates: Array) -> void:
 	_candidate_positions.clear()
 
 	for entry in candidates:
-		var cand := entry as DotNpcSenses.Candidate
+		var cand := entry as GSNpcSenses.Candidate
 
 		if cand != null:
 			_candidate_positions[cand.id] = cand.position
@@ -332,13 +332,13 @@ func _think(delta: float) -> void:
 
 
 ## [param npc]'s brain set its think interval to [param every] outside its own think (a stagger); see
-## [method DotNpcBrain.pace_every]. Nothing to do unless [member pacing] is on.
-func pace_every(npc: DotNpcInstance, every: int) -> void:
+## [method GSNpcBrain.pace_every]. Nothing to do unless [member pacing] is on.
+func pace_every(npc: GSNpcInstance, every: int) -> void:
 	_pacing.every(npc, every)
 
 
 ## [param npc]'s brain may have started or stopped pacing (a drive taken or let go).
-func pace_changed(npc: DotNpcInstance) -> void:
+func pace_changed(npc: GSNpcInstance) -> void:
 	_pacing.changed(npc)
 
 
@@ -349,15 +349,15 @@ func pacing_is_native() -> bool:
 
 ## Decide for every gathered brain (pooled when allowed and every brain is thread safe), then apply in gather order.
 func _decide_and_apply(split: Array, gathered: Array) -> void:
-	var pooled := split.all(func(b: DotNpcBrain) -> bool: return b.is_thread_safe())
-	var intents := DotParallel.run(
-		func(i: int) -> Variant: return (split[i] as DotNpcBrain)._npc_decide(gathered[i]),
+	var pooled := split.all(func(b: GSNpcBrain) -> bool: return b.is_thread_safe())
+	var intents := GSParallel.run(
+		func(i: int) -> Variant: return (split[i] as GSNpcBrain)._npc_decide(gathered[i]),
 		split.size(), &"npc_think", effective_think_workers() if pooled else 0,
 		func(a: Variant, b: Variant) -> String: return "" if var_to_str(a) == var_to_str(b) else "%s vs %s" % [a, b]
 	)
 
 	for i in split.size():
-		var brain: DotNpcBrain = split[i]
+		var brain: GSNpcBrain = split[i]
 
 		# An earlier apply may have killed this NPC (a blast); its intent is dropped, as a dead brain's think is.
 		if brain.npc != null and brain.npc.is_alive():
@@ -370,7 +370,7 @@ func spawn(
 	at: Vector3,
 	owner_id: StringName = &"",
 	orientation: Basis = Basis.IDENTITY
-) -> DotNpcInstance:
+) -> GSNpcInstance:
 	return _spawning.spawn(npc_id, at, owner_id, orientation)
 
 
@@ -382,7 +382,7 @@ func spawn_2d(
 	at: Vector2,
 	owner_id: StringName = &"",
 	rotation: float = 0.0
-) -> DotNpcInstance:
+) -> GSNpcInstance:
 	return _spawning.spawn_2d(npc_id, at, owner_id, rotation)
 
 
@@ -394,32 +394,32 @@ func seed_for(subject: int, from_game: bool = false) -> int:
 
 
 ## Spawns up to [param count] of one kind around [param at]. Returns what was made.
-## Capped by [member DotNpcLimits.burst_cap] (0 = unlimited): a director asking for a wave versus a bug asking for ten thousand.
+## Capped by [member GSNpcLimits.burst_cap] (0 = unlimited): a director asking for a wave versus a bug asking for ten thousand.
 func spawn_group(
 	npc_id: StringName,
 	at: Vector3,
 	count: int,
 	spread: float = 3.0,
 	owner_id: StringName = &""
-) -> Array[DotNpcInstance]:
+) -> Array[GSNpcInstance]:
 	return _spawning.spawn_group(npc_id, at, count, spread, owner_id)
 
 
 ## Whether one more of [param def] may exist right now.
-func may_spawn(def: DotNpcDef, owner_id: StringName = &"") -> DotResult:
+func may_spawn(def: GSNpcDef, owner_id: StringName = &"") -> GSResult:
 	return _spawning.may_spawn(def, owner_id)
 
 
 ## Where an NPC asked for at [param at] would actually stand.
 ## Separate from [method spawn] so a director can ask first: a wave with three legal positions of eight
 ## should spawn three, not eight in a wall.
-func place(at: Vector3) -> DotResult:
+func place(at: Vector3) -> GSResult:
 	return _spawning.place(at)
 
 
 ## Builds and attaches the brain named by the definition.
-## Loaded by path, as in [DotNpcBrain]: a class_name cannot be resolved inside a mounted pack.
-func attach_brain(npc: DotNpcInstance) -> DotResult:
+## Loaded by path, as in [GSNpcBrain]: a class_name cannot be resolved inside a mounted pack.
+func attach_brain(npc: GSNpcInstance) -> GSResult:
 	return _spawning.attach_brain(npc)
 
 
@@ -447,10 +447,10 @@ func damage(instance_id: int, amount: float, by: StringName = &"") -> float:
 		# is a reclaim candidate while being killed.
 	npc.engaged_at = _now
 
-		# The brain is told before the signal, and at all: `DotNpcBrain._npc_damaged` was once declared and
+		# The brain is told before the signal, and at all: `GSNpcBrain._npc_damaged` was once declared and
 		# called by nothing, so NPCs never flinched, called for help or fled, with no error anywhere.
 	if npc.brain != null:
-		(npc.brain as DotNpcBrain).damaged(before - npc.health, by)
+		(npc.brain as GSNpcBrain).damaged(before - npc.health, by)
 
 	damaged.emit(npc, before - npc.health, by)
 
@@ -474,7 +474,7 @@ func report_death(instance_id: int, by: StringName = &"") -> bool:
 	# Announced while the node still exists, and the brain is told before anything
 	# else: dropping a loot bag needs a position, and after `remove` there is none.
 	if npc.brain != null:
-		(npc.brain as DotNpcBrain).died(by)
+		(npc.brain as GSNpcBrain).died(by)
 
 	died.emit(npc, by)
 
@@ -500,10 +500,10 @@ func remove(instance_id: int, reason: StringName = REASON_ADMIN) -> bool:
 
 	var found: Variant = _npcs.get(instance_id)
 
-	if not (found is DotNpcInstance):
+	if not (found is GSNpcInstance):
 		return false
 
-	var npc: DotNpcInstance = found
+	var npc: GSNpcInstance = found
 
 	_npcs.erase(instance_id)
 	_pacing.removed(npc)
@@ -534,15 +534,15 @@ func remove(instance_id: int, reason: StringName = REASON_ADMIN) -> bool:
 	return true
 
 
-## Breaks the NPC <-> brain cycle. See [method DotNpcBrain.unbind].
+## Breaks the NPC <-> brain cycle. See [method GSNpcBrain.unbind].
 ## Called from [method remove] and when this spawner is freed. Clearing only `npc.brain` is not the fix:
 ## the brain's own context points back at the brain.
-func _unbind(npc: DotNpcInstance) -> void:
+func _unbind(npc: GSNpcInstance) -> void:
 	if npc == null:
 		return
 
-	if npc.brain is DotNpcBrain:
-		(npc.brain as DotNpcBrain).unbind()
+	if npc.brain is GSNpcBrain:
+		(npc.brain as GSNpcBrain).unbind()
 
 	npc.brain = null
 
@@ -556,7 +556,7 @@ func _notification(what: int) -> void:
 	for id in _npcs:
 		var npc: Variant = _npcs[id]
 
-		if npc is DotNpcInstance:
+		if npc is GSNpcInstance:
 			_unbind(npc)
 
 
@@ -591,7 +591,7 @@ func warm() -> int:
 	if catalogue == null:
 		return count
 
-	for def: DotNpcDef in catalogue.npcs:
+	for def: GSNpcDef in catalogue.npcs:
 		if def == null or not def.enabled:
 			continue
 
@@ -642,13 +642,13 @@ func owner_left(owner_id: StringName) -> int:
 	return clear_owner(owner_id, REASON_LEFT)
 
 
-func get_npc(instance_id: int) -> DotNpcInstance:
+func get_npc(instance_id: int) -> GSNpcInstance:
 	var found: Variant = _npcs.get(instance_id)
-	return found if found is DotNpcInstance else null
+	return found if found is GSNpcInstance else null
 
 
 ## The NPC a node belongs to, or null. For a shot that hit something.
-func npc_for_node(node: Node) -> DotNpcInstance:
+func npc_for_node(node: Node) -> GSNpcInstance:
 	if node == null:
 		return null
 
@@ -659,7 +659,7 @@ func npc_for_node(node: Node) -> DotNpcInstance:
 	while walk != null:
 		var found: Variant = _npcs.get(walk.get_instance_id())
 
-		if found is DotNpcInstance:
+		if found is GSNpcInstance:
 			return found
 
 		walk = walk.get_parent()
@@ -675,7 +675,7 @@ func world_cost() -> int:
 	var total := 0
 
 	for id in _npcs:
-		total += (_npcs[id] as DotNpcInstance).def.cost
+		total += (_npcs[id] as GSNpcInstance).def.cost
 
 	return total
 
@@ -688,18 +688,18 @@ func count_in_faction(faction: StringName) -> int:
 	var total := 0
 
 	for id in _npcs:
-		if (_npcs[id] as DotNpcInstance).def.faction == faction:
+		if (_npcs[id] as GSNpcInstance).def.faction == faction:
 			total += 1
 
 	return total
 
 
 ## Every live NPC. A copy, because callers walk it to decide what to remove.
-func all_npcs() -> Array[DotNpcInstance]:
-	var out: Array[DotNpcInstance] = []
+func all_npcs() -> Array[GSNpcInstance]:
+	var out: Array[GSNpcInstance] = []
 
 	for id in _npcs:
-		var npc: DotNpcInstance = _npcs[id]
+		var npc: GSNpcInstance = _npcs[id]
 
 		if npc.is_alive():
 			out.append(npc)
@@ -707,8 +707,8 @@ func all_npcs() -> Array[DotNpcInstance]:
 	return out
 
 
-func npcs_of(owner_id: StringName) -> Array[DotNpcInstance]:
-	var out: Array[DotNpcInstance] = []
+func npcs_of(owner_id: StringName) -> Array[GSNpcInstance]:
+	var out: Array[GSNpcInstance] = []
 	var found: Variant = _by_owner.get(owner_id, [])
 
 	if not (found is Array):
@@ -717,19 +717,19 @@ func npcs_of(owner_id: StringName) -> Array[DotNpcInstance]:
 	for id in (found as Array):
 		var npc: Variant = _npcs.get(int(id))
 
-		if npc is DotNpcInstance:
+		if npc is GSNpcInstance:
 			out.append(npc)
 
 	return out
 
 
 ## Live NPCs within [param radius] of [param point]. For an explosion, or a director.
-func npcs_near(point: Vector3, radius: float) -> Array[DotNpcInstance]:
-	var out: Array[DotNpcInstance] = []
+func npcs_near(point: Vector3, radius: float) -> Array[GSNpcInstance]:
+	var out: Array[GSNpcInstance] = []
 	var radius_sq := radius * radius
 
 	for id in _npcs:
-		var npc: DotNpcInstance = _npcs[id]
+		var npc: GSNpcInstance = _npcs[id]
 
 		if npc.is_alive() and npc.position().distance_squared_to(point) <= radius_sq:
 			out.append(npc)
@@ -742,12 +742,12 @@ func now() -> float:
 	return _now
 
 
-func _resolve_world() -> DotResult:
+func _resolve_world() -> GSResult:
 	if world_ref == null:
-		return DotResult.success(self)
+		return GSResult.success(self)
 
 	if _world != null and is_instance_valid(_world):
-		return DotResult.success(_world)
+		return GSResult.success(_world)
 
 	var resolved := world_ref.resolve(self)
 
@@ -756,7 +756,7 @@ func _resolve_world() -> DotResult:
 
 	_world = resolved.value
 
-	return DotResult.success(_world)
+	return GSResult.success(_world)
 
 
 func describe() -> Dictionary:
@@ -772,9 +772,9 @@ func describe() -> Dictionary:
 		"seed_base": seed_base,
 		"seeded_by": "game" if seed_source.is_valid() else "spawn count",
 		"nav": nav.describe() if has_nav() else "none",
-		"path_workers": DotParallel.resolve_workers(path_workers),
+		"path_workers": GSParallel.resolve_workers(path_workers),
 		"deferred_paths": deferred_paths,
-		"think_workers": DotParallel.resolve_workers(effective_think_workers()),
+		"think_workers": GSParallel.resolve_workers(effective_think_workers()),
 		"limits": limits.describe_summary() if limits != null else "none",
 	}
 

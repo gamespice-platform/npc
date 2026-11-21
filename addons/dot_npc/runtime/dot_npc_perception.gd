@@ -1,11 +1,11 @@
-class_name DotNpcPerception
+class_name GSNpcPerception
 extends RefCounted
 ## The spawner's perception pass (ranking candidates, committing targets) and the reclaim sweep.
 
-var s: DotNpcSpawner
-var packed := DotNpcSenses.Packed.new()
+var s: GSNpcSpawner
+var packed := GSNpcSenses.Packed.new()
 
-func _init(spawner: DotNpcSpawner) -> void:
+func _init(spawner: GSNpcSpawner) -> void:
 	s = spawner
 
 func perceive() -> void:
@@ -15,10 +15,10 @@ func perceive() -> void:
 	var period := maxi(s.limits.sense_period_ticks, 1)
 	var quiet_period := period * maxi(s.limits.sense_quiet_mult, 1)
 	var slot := 0
-	var due: Array[DotNpcInstance] = []
+	var due: Array[GSNpcInstance] = []
 
 	for id in s._npcs:
-		var npc: DotNpcInstance = s._npcs[id]
+		var npc: GSNpcInstance = s._npcs[id]
 
 		if not npc.is_alive():
 			continue
@@ -58,7 +58,7 @@ func perceive() -> void:
 	for i in n:
 		var npc := due[i]
 		here[i] = npc.position()
-		sight[i] = DotNpcSenses.reach_of(npc)
+		sight[i] = GSNpcSenses.reach_of(npc)
 		hearing[i] = npc.def.hearing_range
 		own[i] = packed.faction_of(npc.def.faction)
 
@@ -66,17 +66,17 @@ func perceive() -> void:
 	var positions := packed.positions
 	var loudness := packed.loudness
 	var factions := packed.factions
-	var chunks := ceili(float(n) / DotNpcSpawner.SENSE_CHUNK)
+	var chunks := ceili(float(n) / GSNpcSpawner.SENSE_CHUNK)
 	var task := func(c: int) -> Array:
-		return DotNpcSenses.rank_many(c * DotNpcSpawner.SENSE_CHUNK, mini(n, (c + 1) * DotNpcSpawner.SENSE_CHUNK),
+		return GSNpcSenses.rank_many(c * GSNpcSpawner.SENSE_CHUNK, mini(n, (c + 1) * GSNpcSpawner.SENSE_CHUNK),
 			here, sight, hearing, own, positions, loudness, factions, cap)
-	var ranked := DotParallel.run(task, chunks, &"npc.senses", s.sense_workers)
+	var ranked := GSParallel.run(task, chunks, &"npc.senses", s.sense_workers)
 
 	for c in chunks:
 		var orders: Array = ranked[c]
 
 		for k in orders.size():
-			var npc := due[c * DotNpcSpawner.SENSE_CHUNK + k]
+			var npc := due[c * GSNpcSpawner.SENSE_CHUNK + k]
 			var before := npc.target_id
 			npc.sense_quiet = orders[k].is_empty()
 			var after := s.senses.decide(npc, s._candidates, orders[k],
@@ -85,7 +85,7 @@ func perceive() -> void:
 			if after != before:
 				s.target_changed.emit(npc, after)
 
-## Answer codes of `DotSimSenses.perceive`.
+## Answer codes of `GSSimSenses.perceive`.
 const _KEEP := -1
 const _CLEAR := -2
 const _SEEN := 1
@@ -93,7 +93,7 @@ const _SINCE := 2
 const _QUIET := 4
 
 ## The pass in GameSpice Sim: the same answers as the script loop above, applied in the same order.
-func _perceive_native(nat: Object, due: Array[DotNpcInstance]) -> void:
+func _perceive_native(nat: Object, due: Array[GSNpcInstance]) -> void:
 	var n := due.size()
 	var senses := s.senses
 	var now := s._now
@@ -118,7 +118,7 @@ func _perceive_native(nat: Object, due: Array[DotNpcInstance]) -> void:
 		npc_f[f + 4] = facing.y
 		npc_f[f + 5] = facing.z
 		npc_f[f + 6] = def.eye_height
-		npc_f[f + 7] = DotNpcSenses.reach_of(npc)
+		npc_f[f + 7] = GSNpcSenses.reach_of(npc)
 		npc_f[f + 8] = def.hearing_range
 		npc_f[f + 9] = def.sight_half_angle_deg
 		npc_f[f + 10] = def.sight_half_angle()
@@ -150,14 +150,14 @@ func _perceive_native(nat: Object, due: Array[DotNpcInstance]) -> void:
 	senses.sight_checks += out[n * 2]
 	senses.los_casts += out[n * 2 + 1]
 
-## Writes one native answer onto [param npc], as [method DotNpcSenses.decide] would have.
-func _apply(npc: DotNpcInstance, target: int, flags: int, now: float) -> void:
+## Writes one native answer onto [param npc], as [method GSNpcSenses.decide] would have.
+func _apply(npc: GSNpcInstance, target: int, flags: int, now: float) -> void:
 	npc.sense_quiet = (flags & _QUIET) != 0
 
 	if target == _CLEAR:
 		npc.target_id = &""
 	elif target >= 0:
-		npc.target_id = (s._candidates[target] as DotNpcSenses.Candidate).id
+		npc.target_id = (s._candidates[target] as GSNpcSenses.Candidate).id
 
 	if flags & _SEEN:
 		npc.target_seen_at = now
@@ -168,7 +168,7 @@ func _apply(npc: DotNpcInstance, target: int, flags: int, now: float) -> void:
 
 ## The script pass over [param due] with every NPC's state compared against the native answer
 ## [param out] first applied to a copy; the script's answer is what stays.
-func _verify_native(due: Array[DotNpcInstance], out: PackedInt32Array) -> void:
+func _verify_native(due: Array[GSNpcInstance], out: PackedInt32Array) -> void:
 	var senses := s.senses
 	var now := s._now
 	var n := due.size()
@@ -186,17 +186,17 @@ func _verify_native(due: Array[DotNpcInstance], out: PackedInt32Array) -> void:
 	for i in n:
 		var npc := due[i]
 		here[i] = npc.position()
-		sight[i] = DotNpcSenses.reach_of(npc)
+		sight[i] = GSNpcSenses.reach_of(npc)
 		hearing[i] = npc.def.hearing_range
 		own[i] = packed.faction_of(npc.def.faction)
 
-	var orders := DotNpcSenses.rank_many(0, n, here, sight, hearing, own, packed.positions,
+	var orders := GSNpcSenses.rank_many(0, n, here, sight, hearing, own, packed.positions,
 		packed.loudness, packed.factions, s.limits.sense_candidate_cap)
 
 	for k in n:
 		var npc := due[k]
 		var before := npc.target_id
-		var want := DotNpcInstance.new()
+		var want := GSNpcInstance.new()
 		want.target_id = npc.target_id
 		want.target_seen_at = npc.target_seen_at
 		want.engaged_at = npc.engaged_at
@@ -232,10 +232,10 @@ func reclaim() -> void:
 	for id in ids:
 		var found: Variant = s._npcs.get(id)
 
-		if not (found is DotNpcInstance):
+		if not (found is GSNpcInstance):
 			continue
 
-		var npc: DotNpcInstance = found
+		var npc: GSNpcInstance = found
 
 		if not npc.is_alive() or npc.has_target():
 			continue
@@ -247,11 +247,11 @@ func reclaim() -> void:
 		var position := npc.position()
 
 		for entry in s._candidates:
-			var cand := entry as DotNpcSenses.Candidate
+			var cand := entry as GSNpcSenses.Candidate
 
 			if cand != null:
 				nearest_sq = minf(nearest_sq, position.distance_squared_to(cand.position))
 
 		if nearest_sq > limit_sq:
 			s.reclaim_count += 1
-			s.remove(npc.instance_id, DotNpcSpawner.REASON_RECLAIMED)
+			s.remove(npc.instance_id, GSNpcSpawner.REASON_RECLAIMED)

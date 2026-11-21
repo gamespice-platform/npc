@@ -1,8 +1,8 @@
-class_name DotNpcDrive
+class_name GSNpcDrive
 extends RefCounted
 
-## A player's hands on an NPC body. While [member active], [method DotNpcBrain.think] calls
-## [method DotNpcBrain._npc_driven] instead of [method DotNpcBrain._npc_think]: the AI does not run
+## A player's hands on an NPC body. While [member active], [method GSNpcBrain.think] calls
+## [method GSNpcBrain._npc_driven] instead of [method GSNpcBrain._npc_think]: the AI does not run
 ## and the game moves the body from this intent (plain numbers, any input codec). Server only.
 
 ## Whether a player holds the body.

@@ -1,9 +1,9 @@
-class_name DotNpcNetSync
+class_name GSNpcNetSync
 extends RefCounted
 
 ## What an NPC has to tell every client, and how to get it there.
 ## GameSpice Net is not imported (a script naming a missing class_name fails to parse): types are strings a bridge
-## resolves with `DotNetVar.Type[spec.type]`. All interpolated, nothing predicted. Health is a percentage.
+## resolves with `GSNetVar.Type[spec.type]`. All interpolated, nothing predicted. Health is a percentage.
 
 ## Health as 0-100. Seven bits, because a client only ever draws a bar with it.
 const HEALTH_BITS := 7
@@ -27,11 +27,11 @@ enum State {
 }
 
 
-## One bit per limb ([constant DotNpcLimbs.MAX_LIMBS]): set when it has been severed.
+## One bit per limb ([constant GSNpcLimbs.MAX_LIMBS]): set when it has been severed.
 const LIMB_BITS := 8
 
 
-## The one extra field of an NPC with [DotNpcLimbs]: `net_limbs`, filled from `DotNpcLimbs.mask()` and applied
+## The one extra field of an NPC with [GSNpcLimbs]: `net_limbs`, filled from `GSNpcLimbs.mask()` and applied
 ## with `apply_mask()`. Kept out of [method specs] so a game without limbs declares nothing new.
 static func limb_specs() -> Array[Dictionary]:
 	return [{"property": &"net_limbs", "type": "UINT", "bits": LIMB_BITS, "interpolated": false}]
@@ -72,7 +72,7 @@ static func properties() -> Array[StringName]:
 
 ## Copies an NPC's state onto a replicating object.
 ## [param state] is the game's: GameSpice NPC does not know whether an NPC is mid-swing.
-static func pull(npc: DotNpcInstance, into: Object, state: int = State.IDLE) -> void:
+static func pull(npc: GSNpcInstance, into: Object, state: int = State.IDLE) -> void:
 	if npc == null or into == null:
 		return
 
@@ -103,7 +103,7 @@ static func apply(node: Node3D, from: Object) -> void:
 
 
 ## The NPC's facing as a yaw in radians, 0 to TAU.
-static func yaw_of(npc: DotNpcInstance) -> float:
+static func yaw_of(npc: GSNpcInstance) -> float:
 	if npc == null or not npc.is_alive():
 		return 0.0
 
@@ -128,7 +128,7 @@ static func dequantise_yaw(value: int) -> float:
 
 ## Health as 0-100, rounded up so a live NPC never reads as 0.
 ## Up, not to nearest: a client drawing "0" over something still swinging at a player lies to them.
-static func quantise_health(npc: DotNpcInstance) -> int:
+static func quantise_health(npc: GSNpcInstance) -> int:
 	if npc == null or npc.def == null or npc.def.max_health <= 0.0:
 		return 0
 

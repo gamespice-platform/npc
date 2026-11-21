@@ -6,7 +6,7 @@ extends "res://examples/selftest/brain_tests.gd"
 func _test_net_sync() -> void:
 	_section("replication")
 
-	var specs := DotNpcNetSync.specs()
+	var specs := GSNpcNetSync.specs()
 	_check(specs.size() == 6, "there is a spec for what crosses the wire")
 
 	var by_name := {}
@@ -28,13 +28,13 @@ func _test_net_sync() -> void:
 	# A plain object with the properties set, because GameSpice Net is not here to make a
 	# behaviour. What is being tested is the quantisation, not the transport.
 	var probe := _NetProbe.new()
-	DotNpcNetSync.pull(npc, probe, DotNpcNetSync.State.MOVING)
+	GSNpcNetSync.pull(npc, probe, GSNpcNetSync.State.MOVING)
 
 	_check(probe.net_x == 3.0 and probe.net_z == -4.0, "a pull copies the position")
 	_check(probe.net_health == 100, "and full health reads as 100")
 
 	spawner.damage(npc.instance_id, 99.6)
-	DotNpcNetSync.pull(npc, probe)
+	GSNpcNetSync.pull(npc, probe)
 	_check(
 		probe.net_health == 1,
 		"and an NPC on a sliver of health never reads as 0",
@@ -43,7 +43,7 @@ func _test_net_sync() -> void:
 
 	for degrees in [0, 1, 90, 180, 270, 359]:
 		var yaw := deg_to_rad(float(degrees))
-		var back := DotNpcNetSync.dequantise_yaw(DotNpcNetSync.quantise_yaw(yaw))
+		var back := GSNpcNetSync.dequantise_yaw(GSNpcNetSync.quantise_yaw(yaw))
 		_check(
 			absf(angle_difference(yaw, back)) < deg_to_rad(1.0),
 			"yaw survives quantisation at %d degrees" % degrees,
@@ -51,7 +51,7 @@ func _test_net_sync() -> void:
 		)
 
 	_check(
-		DotNpcNetSync.quantise_yaw(TAU) == 0,
+		GSNpcNetSync.quantise_yaw(TAU) == 0,
 		"and a full turn wraps to zero rather than off the end of the field",
 		"one past the largest value truncates to 0 and faces a body backwards"
 	)
@@ -61,14 +61,14 @@ func _test_net_sync() -> void:
 	_done()
 
 
-func _net_apply_checks(spawner: DotNpcSpawner, probe: _NetProbe) -> void:
+func _net_apply_checks(spawner: GSNpcSpawner, probe: _NetProbe) -> void:
 	var node := Node3D.new()
 	_world.add_child(node)
 	probe.net_x = 5.0
 	probe.net_y = 1.0
 	probe.net_z = 6.0
-	probe.net_yaw = DotNpcNetSync.quantise_yaw(PI)
-	DotNpcNetSync.apply(node, probe)
+	probe.net_yaw = GSNpcNetSync.quantise_yaw(PI)
+	GSNpcNetSync.apply(node, probe)
 
 	_check(node.global_position == Vector3(5, 1, 6), "and a client can apply one")
 
@@ -76,8 +76,8 @@ func _net_apply_checks(spawner: DotNpcSpawner, probe: _NetProbe) -> void:
 	# replicated yaw must look the same way — the two halves were each half a turn out,
 	# which cancelled on screen and left every server-side sight cone pointing backwards.
 	var walker := spawner.spawn(&"walker", Vector3(30, 0, 30))
-	if walker != null and walker.brain is DotNpcBrain:
-		(walker.brain as DotNpcBrain).face(Vector3(1, 0, 0))
+	if walker != null and walker.brain is GSNpcBrain:
+		(walker.brain as GSNpcBrain).face(Vector3(1, 0, 0))
 		_check(
 			walker.facing().distance_to(Vector3(1, 0, 0)) < 0.01,
 			"an NPC told to face +X faces +X",
@@ -86,8 +86,8 @@ func _net_apply_checks(spawner: DotNpcSpawner, probe: _NetProbe) -> void:
 		var mirror_node := Node3D.new()
 		_world.add_child(mirror_node)
 		var sent := _NetProbe.new()
-		sent.net_yaw = DotNpcNetSync.quantise_yaw(DotNpcNetSync.yaw_of(walker))
-		DotNpcNetSync.apply(mirror_node, sent)
+		sent.net_yaw = GSNpcNetSync.quantise_yaw(GSNpcNetSync.yaw_of(walker))
+		GSNpcNetSync.apply(mirror_node, sent)
 		_check(
 			(-mirror_node.global_transform.basis.z).distance_to(Vector3(1, 0, 0)) < 0.05,
 			"and a client given its yaw faces the same way",
@@ -135,7 +135,7 @@ func _test_limbs() -> void:
 	_world.add_child(body)
 	var sk := _limb_skeleton()
 	body.add_child(sk)
-	var limbs := DotNpcLimbs.new()
+	var limbs := GSNpcLimbs.new()
 	limbs.skeleton = sk
 	body.add_child(limbs)
 	limbs.setup(&"dummy", defs)
@@ -149,7 +149,7 @@ func _test_limbs() -> void:
 	_check(limbs.mask() == 1, "the mask has the head's bit")
 	_check(limbs.hit(Vector3(-0.2, 0.9, 0), 40.0) == &"legL", "damage_scale multiplies what a limb takes")
 	_check(is_equal_approx(limbs.speed_scale(), 0.5) and limbs.attack_scale() == 1.0, "a lost leg slows, and arms are unaffected")
-	var mirror := DotNpcLimbs.new()
+	var mirror := GSNpcLimbs.new()
 	body.add_child(mirror)
 	mirror.setup(&"dummy", defs)
 	var seen: Array = []
@@ -158,12 +158,12 @@ func _test_limbs() -> void:
 	_check(mirror.is_severed(&"head") and mirror.is_severed(&"legL") and not mirror.is_severed(&"armL") and seen.size() == 2, "a client mirror severs exactly what the mask says")
 	mirror.apply_mask(0)
 	_check(mirror.is_severed(&"head"), "a limb never grows back")
-	_check(DotNpcLimbs.defs_from_config(&"no_such_definition").is_empty(), "no configured limbs is an empty set, not an error")
-	var specs := DotNpcNetSync.limb_specs()
-	_check(specs.size() == 1 and specs[0]["property"] == &"net_limbs" and specs[0]["bits"] >= DotNpcLimbs.MAX_LIMBS, "replication carries the mask as one field")
-	_check(DotNpcGibs.subtree(sk, 0).size() == 4 and DotNpcGibs.subtree(sk, 2).size() == 1, "a limb's subtree is its bone and what hangs below")
+	_check(GSNpcLimbs.defs_from_config(&"no_such_definition").is_empty(), "no configured limbs is an empty set, not an error")
+	var specs := GSNpcNetSync.limb_specs()
+	_check(specs.size() == 1 and specs[0]["property"] == &"net_limbs" and specs[0]["bits"] >= GSNpcLimbs.MAX_LIMBS, "replication carries the mask as one field")
+	_check(GSNpcGibs.subtree(sk, 0).size() == 4 and GSNpcGibs.subtree(sk, 2).size() == 1, "a limb's subtree is its bone and what hangs below")
 	# hit_limb names the limb: overlapping regions cannot sever a different one.
-	var named := DotNpcLimbs.new()
+	var named := GSNpcLimbs.new()
 	body.add_child(named)
 	named.setup(&"dummy", defs)
 	_check(named.hit_limb(&"armL", Vector3(0, 1.7, 0), 100.0) == &"armL" and named.is_severed(&"armL") and not named.is_severed(&"head"), "hit_limb hurts the named limb, not the one the point is in")
@@ -171,7 +171,7 @@ func _test_limbs() -> void:
 	# A late joiner shows the stump silently: no gib or blood path, and a finite point.
 	var stub := _LimbView.new()
 	body.add_child(stub)
-	var late := DotNpcLimbs.new()
+	var late := GSNpcLimbs.new()
 	body.add_child(late)
 	late.setup(&"dummy", defs, stub)
 	var infos: Array = []
@@ -185,12 +185,12 @@ func _test_limbs() -> void:
 	late.setup(&"dummy", defs, stub)
 	_check(late.mask() == 0 and not late.is_severed(&"head") and stub.restores == 1, "setup resets the severed set and restores the view")
 	# c80b948: an empty rest read is not cached, so a host fills the dictionary through store_rest_points.
-	var arm := DotNpcLimbs.new()
+	var arm := GSNpcLimbs.new()
 	arm.rest_model = "synthetic://limbs_regression"
 	body.add_child(arm)
 	var arm_def: Dictionary = defs["armL"]
 	_check(arm.points_of(arm_def).is_empty(), "an arm with no rest data has no points")
-	DotNpcLimbs.store_rest_points(arm.rest_model, {&"armL": Vector3(-0.5, 1.4, 0)})
+	GSNpcLimbs.store_rest_points(arm.rest_model, {&"armL": Vector3(-0.5, 1.4, 0)})
 	_check(arm.points_of(arm_def).size() >= 1, "points_of on an arm returns points once the host stores rest points after the first read")
 	_check(arm.points_of(arm_def)[0].is_equal_approx(body.global_transform * Vector3(-0.5, 1.4, 0)), "the stored arm origin is the first point")
 	body.queue_free()
@@ -199,57 +199,57 @@ func _test_limbs() -> void:
 
 func _test_gore() -> void:
 	_section("gore level")
-	DotNpcGore.reset()
-	_check(DotNpcGore.level == 2 and DotNpcGore.gibs_enabled() and DotNpcGore.spray_enabled(), "the default is gibs and spray (level 2)")
-	DotNpcGore.level = 9
-	_check(DotNpcGore.level == DotNpcGore.MAX_LEVEL and is_equal_approx(DotNpcGore.health_scale(), 0.6), "a level clamps to 3, where limbs give way sooner")
-	DotNpcGore.level = -4
-	_check(DotNpcGore.level == 0 and not DotNpcGore.dismember_enabled(), "a level clamps to 0, where nothing comes off")
-	DotNpcGore.level = 1
-	_check(DotNpcGore.dismember_enabled() and not DotNpcGore.gibs_enabled() and not DotNpcGore.spray_enabled(), "level 1 is stumps only")
-	DotNpcGore.level = 2
-	DotNpcGore.max_gibs = 0
-	_check(not DotNpcGore.gibs_enabled() and DotNpcGore.spray_enabled(), "a gib cap of 0 throws no limb but keeps the spray")
-	DotNpcGore.reset()
+	GSNpcGore.reset()
+	_check(GSNpcGore.level == 2 and GSNpcGore.gibs_enabled() and GSNpcGore.spray_enabled(), "the default is gibs and spray (level 2)")
+	GSNpcGore.level = 9
+	_check(GSNpcGore.level == GSNpcGore.MAX_LEVEL and is_equal_approx(GSNpcGore.health_scale(), 0.6), "a level clamps to 3, where limbs give way sooner")
+	GSNpcGore.level = -4
+	_check(GSNpcGore.level == 0 and not GSNpcGore.dismember_enabled(), "a level clamps to 0, where nothing comes off")
+	GSNpcGore.level = 1
+	_check(GSNpcGore.dismember_enabled() and not GSNpcGore.gibs_enabled() and not GSNpcGore.spray_enabled(), "level 1 is stumps only")
+	GSNpcGore.level = 2
+	GSNpcGore.max_gibs = 0
+	_check(not GSNpcGore.gibs_enabled() and GSNpcGore.spray_enabled(), "a gib cap of 0 throws no limb but keeps the spray")
+	GSNpcGore.reset()
 	var defs := {"armL": {"bones": ["armL"], "radius": 0.2, "health": 80.0}}
-	var make := func() -> DotNpcLimbs:
-		var l := DotNpcLimbs.new()
+	var make := func() -> GSNpcLimbs:
+		var l := GSNpcLimbs.new()
 		_world.add_child(l)
 		l.setup(&"gore", defs)
 		return l
-	var off: DotNpcLimbs = make.call()
-	DotNpcGore.level = 0
+	var off: GSNpcLimbs = make.call()
+	GSNpcGore.level = 0
 	_check(off.hit_limb(&"armL", Vector3.ZERO, 500.0) == &"" and off.mask() == 0, "level 0: a shot of any size takes no limb")
 	off.apply_mask(1)
 	_check(off.mask() == 0, "level 0: a replicated mask shows nothing")
-	DotNpcGore.level = 2
+	GSNpcGore.level = 2
 	_check(off.hit_limb(&"armL", Vector3.ZERO, 79.0) == &"", "level 2: 79 of 80 holds")
-	var soft: DotNpcLimbs = make.call()
-	DotNpcGore.level = 3
+	var soft: GSNpcLimbs = make.call()
+	GSNpcGore.level = 3
 	_check(soft.hit_limb(&"armL", Vector3.ZERO, 50.0) == &"armL", "level 3: 50 takes a limb of 80 (x0.6)")
-	DotNpcGore.reset()
-	DotNpcGore.view_cap = DotNpcGore.STUMPS
-	_check(DotNpcGore.drawn_level() == 1 and not DotNpcGore.gibs_enabled() and not DotNpcGore.spray_enabled() and not DotNpcGore.wounds_enabled(),
+	GSNpcGore.reset()
+	GSNpcGore.view_cap = GSNpcGore.STUMPS
+	_check(GSNpcGore.drawn_level() == 1 and not GSNpcGore.gibs_enabled() and not GSNpcGore.spray_enabled() and not GSNpcGore.wounds_enabled(),
 		"a player's cap of 1 draws clean stumps only, whatever the rule")
-	var capped: DotNpcLimbs = make.call()
+	var capped: GSNpcLimbs = make.call()
 	_check(capped.hit_limb(&"armL", Vector3.ZERO, 500.0) == &"armL", "and the cap never changes what the rules let come off")
-	DotNpcGore.level = 0
-	DotNpcGore.view_cap = 3
-	_check(DotNpcGore.drawn_level() == 0, "a rule of 0 caps what a player can ask to see")
-	DotNpcGore.level = 2
-	DotNpcGore.view_cap = 0
-	var hidden: DotNpcLimbs = make.call()
+	GSNpcGore.level = 0
+	GSNpcGore.view_cap = 3
+	_check(GSNpcGore.drawn_level() == 0, "a rule of 0 caps what a player can ask to see")
+	GSNpcGore.level = 2
+	GSNpcGore.view_cap = 0
+	var hidden: GSNpcLimbs = make.call()
 	hidden.apply_mask(1)
 	_check(hidden.mask() == 0, "a player's cap of 0 draws no stump from a replicated mask")
-	DotNpcGore.level = 0
-	DotNpcGore.view_cap = 3
+	GSNpcGore.level = 0
+	GSNpcGore.view_cap = 3
 	hidden.sever(&"armL", Vector3.INF, Vector3.ZERO)
 	_check(hidden.mask() == 0, "level 0: sever() takes nothing either")
-	DotNpcGore.reset()
-	DotNpcGore.max_wounds = 0
-	_check(not DotNpcGore.wounds_enabled() and DotNpcGibs.add_wound(null, Vector3.ZERO) == null and DotNpcGibs.add_pool(null, Vector3.ZERO) == null,
+	GSNpcGore.reset()
+	GSNpcGore.max_wounds = 0
+	_check(not GSNpcGore.wounds_enabled() and GSNpcGibs.add_wound(null, Vector3.ZERO) == null and GSNpcGibs.add_pool(null, Vector3.ZERO) == null,
 		"a wound cap of 0 draws no marks or pools")
-	DotNpcGore.reset()
+	GSNpcGore.reset()
 	off.queue_free()
 	soft.queue_free()
 	capped.queue_free()
@@ -266,12 +266,12 @@ func _test_spawning_2d() -> void:
 	var world_2d := Node2D.new()
 	_world.add_child(world_2d)
 
-	var spawner := DotNpcSpawner.new()
+	var spawner := GSNpcSpawner.new()
 	spawner.catalogue = _catalogue()
 	spawner.limits = _limits()
 	spawner.authoritative = true
 	spawner.two_dimensional = true
-	spawner.world_ref = DotNodeRef.of_path(^"..")
+	spawner.world_ref = GSNodeRef.of_path(^"..")
 	world_2d.add_child(spawner)
 
 	var swarmer := spawner.spawn_2d(&"swarmer", Vector2(120.0, -40.0))
@@ -293,15 +293,15 @@ func _test_spawning_2d() -> void:
 		str(swarmer.position()) if swarmer != null else "null"
 	)
 	_check(
-		DotNpcInstance.from_plane(DotNpcInstance.to_plane(Vector2(3.0, -7.0)))
+		GSNpcInstance.from_plane(GSNpcInstance.to_plane(Vector2(3.0, -7.0)))
 			== Vector2(3.0, -7.0),
 		"the mapping round-trips"
 	)
 
 	# Perception, which is the half a 2D game is actually here for.
 	spawner.set_candidates([
-		_candidate(&"player_near", DotNpcInstance.to_plane(Vector2(160.0, -40.0))),
-		_candidate(&"player_far", DotNpcInstance.to_plane(Vector2(4000.0, -40.0))),
+		_candidate(&"player_near", GSNpcInstance.to_plane(Vector2(160.0, -40.0))),
+		_candidate(&"player_far", GSNpcInstance.to_plane(Vector2(4000.0, -40.0))),
 	])
 	# Several ticks, because perception is staggered across `sense_period_ticks` — ninety
 	# NPCs sensing on the same tick is a spike and the same work spread over four is not.
@@ -331,7 +331,7 @@ func _test_spawning_2d() -> void:
 	_done()
 
 
-func _spawning_2d_refusals(spawner: DotNpcSpawner, world_2d: Node2D) -> void:
+func _spawning_2d_refusals(spawner: GSNpcSpawner, world_2d: Node2D) -> void:
 	var children := world_2d.get_child_count()
 
 	_check(

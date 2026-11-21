@@ -5,8 +5,8 @@ extends "res://examples/selftest/nav_path_tests.gd"
 func _test_senses_commitment() -> void:
 	_section("senses: commitment")
 
-	var senses := DotNpcSenses.new()
-	var def := DotNpcDef.make(&"seer", BODY)
+	var senses := GSNpcSenses.new()
+	var def := GSNpcDef.make(&"seer", BODY)
 	def.require_line_of_sight = false
 	def.sight_half_angle_deg = 180.0
 
@@ -54,7 +54,7 @@ func _test_senses_commitment() -> void:
 func _test_target_since() -> void:
 	_section("commitment time")
 
-	var senses := DotNpcSenses.new()
+	var senses := GSNpcSenses.new()
 	var npc := _loose_npc(_catalogue().get_npc(&"walker"))
 
 	var one := _candidate(&"one", Vector3(0, 0, -6))
@@ -97,10 +97,10 @@ func _test_target_since() -> void:
 func _test_senses_pruning() -> void:
 	_section("senses: held-first pruning")
 
-	var full := DotNpcSenses.new()
+	var full := GSNpcSenses.new()
 	full.prune_by_held = false
-	var pruned := DotNpcSenses.new()
-	var def := DotNpcDef.make(&"pruner", BODY)
+	var pruned := GSNpcSenses.new()
+	var def := GSNpcDef.make(&"pruner", BODY)
 	def.require_line_of_sight = false
 	def.sight_half_angle_deg = 60.0
 	def.sight_range = 30.0
@@ -123,7 +123,7 @@ func _test_senses_pruning() -> void:
 			list.append(_candidate(StringName("c%d" % i), at, faction, 20.0 if rng.randf() < 0.3 else 0.0))
 
 		var pick := rng.randi_range(-2, list.size() - 1)
-		var held: StringName = &"" if pick == -2 else (&"gone" if pick == -1 else (list[pick] as DotNpcSenses.Candidate).id)
+		var held: StringName = &"" if pick == -2 else (&"gone" if pick == -1 else (list[pick] as GSNpcSenses.Candidate).id)
 		var start := [held, rng.randf_range(0.0, 5.0), 1.0, 0.5]
 		var results: Array = []
 
@@ -190,8 +190,8 @@ func _test_senses_workers() -> void:
 	_check(inline.count("") < 5, "nearly every NPC commits (the rest face away)", ",".join(inline))
 	_check(inline == threaded, "and ranking on workers commits each to the same target",
 		"%s against %s" % [",".join(inline), ",".join(threaded)])
-	_check(DotParallel.resolve_workers(2) == 0 or int(DotParallel.describe()["labels"].get("npc.senses", {}).get("pooled", 0)) > 0,
-		"the pass ran on the pool", str(DotParallel.describe()["labels"]))
+	_check(GSParallel.resolve_workers(2) == 0 or int(GSParallel.describe()["labels"].get("npc.senses", {}).get("pooled", 0)) > 0,
+		"the pass ran on the pool", str(GSParallel.describe()["labels"]))
 	spawner.queue_free()
 	_done()
 
@@ -266,8 +266,8 @@ func _test_senses_quiet() -> void:
 func _test_senses_cap() -> void:
 	_section("senses: the candidate cap")
 
-	var senses := DotNpcSenses.new()
-	var def := DotNpcDef.make(&"seer", BODY)
+	var senses := GSNpcSenses.new()
+	var def := GSNpcDef.make(&"seer", BODY)
 	def.require_line_of_sight = false
 	def.sight_half_angle_deg = 180.0
 	def.sight_range = 30.0
@@ -311,10 +311,10 @@ func _test_senses_cap() -> void:
 func _test_senses_grace() -> void:
 	_section("senses: the grace period")
 
-	var senses := DotNpcSenses.new()
+	var senses := GSNpcSenses.new()
 	senses.commitment_grace = 3.0
 
-	var def := DotNpcDef.make(&"seer", BODY)
+	var def := GSNpcDef.make(&"seer", BODY)
 	def.require_line_of_sight = false
 	def.sight_half_angle_deg = 180.0
 
@@ -347,8 +347,8 @@ func _test_senses_grace() -> void:
 func _test_senses_blind_and_smoke() -> void:
 	_section("senses: blindness and smoke")
 
-	var senses := DotNpcSenses.new()
-	var def := DotNpcDef.make(&"seer", BODY)
+	var senses := GSNpcSenses.new()
+	var def := GSNpcDef.make(&"seer", BODY)
 	def.require_line_of_sight = false
 	def.sight_half_angle_deg = 180.0
 	def.sight_range = 30.0
@@ -389,8 +389,8 @@ func _test_senses_blind_and_smoke() -> void:
 func _test_senses_basics() -> void:
 	_section("senses")
 
-	var senses := DotNpcSenses.new()
-	var def := DotNpcDef.make(&"seer", BODY)
+	var senses := GSNpcSenses.new()
+	var def := GSNpcDef.make(&"seer", BODY)
 	def.sight_range = 20.0
 	def.sight_half_angle_deg = 60.0
 	def.hearing_range = 5.0
@@ -441,7 +441,7 @@ func _test_senses_basics() -> void:
 	_done()
 
 
-func _senses_on_floor(senses: DotNpcSenses) -> void:
+func _senses_on_floor(senses: GSNpcSenses) -> void:
 	# Standing on a real floor, with line of sight on: the sight line must not start at the feet, ON the floor,
 	# or every NPC on a floor is blind.
 	var ground := StaticBody3D.new()
@@ -460,7 +460,7 @@ func _senses_on_floor(senses: DotNpcSenses) -> void:
 	_world.add_child(ground)
 	await get_tree().physics_frame
 
-	var looker_def := DotNpcDef.make(&"looker", BODY)
+	var looker_def := GSNpcDef.make(&"looker", BODY)
 	looker_def.sight_range = 20.0
 	looker_def.sight_half_angle_deg = 80.0
 	var looker := _loose_npc(looker_def, Vector3(0, 0, 0))

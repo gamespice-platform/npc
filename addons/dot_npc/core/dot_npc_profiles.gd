@@ -1,7 +1,7 @@
-class_name DotNpcProfiles
+class_name GSNpcProfiles
 extends RefCounted
 
-## Loads [DotNpcDef] from `npc` profiles (cfg/addons/dot-npc/npc, cfg/game/<game>/npc, cfg/server/addons/dot-npc/npc, cfg/server/game/<game>/npc).
+## Loads [GSNpcDef] from `npc` profiles (cfg/addons/dot-npc/npc, cfg/game/<game>/npc, cfg/server/addons/dot-npc/npc, cfg/server/game/<game>/npc).
 
 const ADDON := "dot-npc"
 const KIND := "npc"
@@ -10,7 +10,7 @@ const WEIGHTS := ["trivial", "light", "normal", "heavy", "boss"]
 
 ## The common keys. Anything else a brain needs goes under `extra:`.
 static func schema() -> Array:
-	var f := DotProfileSet.field
+	var f := GSProfileSet.field
 	return [
 		f.call("name", "string", ""),
 		f.call("category", "string", "npc"),
@@ -41,32 +41,32 @@ static func profile_schemas() -> Dictionary:
 
 
 ## A profile set for NPCs of [param game]; [param roots] overrides the config roots (tests).
-static func make_set(game: String, roots: PackedStringArray = PackedStringArray()) -> DotProfileSet:
-	var s := DotProfileSet.create(ADDON, game, KIND, schema())
+static func make_set(game: String, roots: PackedStringArray = PackedStringArray()) -> GSProfileSet:
+	var s := GSProfileSet.create(ADDON, game, KIND, schema())
 	s.roots = roots
 	return s
 
 
 ## NPC ids found on disk, sorted; opens no file.
-static func list_ids(profiles: DotProfileSet) -> PackedStringArray:
+static func list_ids(profiles: GSProfileSet) -> PackedStringArray:
 	return profiles.list_ids()
 
 
-## Loads one profile into a validated [DotNpcDef]; the value of the result.
-static func load_def(profiles: DotProfileSet, id: String) -> DotResult:
+## Loads one profile into a validated [GSNpcDef]; the value of the result.
+static func load_def(profiles: GSProfileSet, id: String) -> GSResult:
 	var res := profiles.load_profile(id)
 	if not res.ok:
 		return res
-	var def := DotNpcDef.from_profile(res.value)
+	var def := GSNpcDef.from_profile(res.value)
 	var checked := def.validate()
 	if not checked.ok:
 		return checked
-	return DotResult.success(def)
+	return GSResult.success(def)
 
 
 ## Menu entries `{id, category, icon, sort, hidden}` for the visible NPCs, sorted by sort then id.
 ## Loads each profile's yml but never its scene.
-static func menu_entries(profiles: DotProfileSet, include_hidden: bool = false) -> Array:
+static func menu_entries(profiles: GSProfileSet, include_hidden: bool = false) -> Array:
 	var out: Array = []
 	for id in profiles.list_ids():
 		var res := profiles.load_profile(id)
@@ -88,9 +88,9 @@ static func menu_entries(profiles: DotProfileSet, include_hidden: bool = false) 
 	return out
 
 
-## Every loadable profile as a [DotNpcCatalogue]; failures are appended to [param errors].
-static func to_catalogue(profiles: DotProfileSet, errors: PackedStringArray = PackedStringArray()) -> DotNpcCatalogue:
-	var cat := DotNpcCatalogue.new()
+## Every loadable profile as a [GSNpcCatalogue]; failures are appended to [param errors].
+static func to_catalogue(profiles: GSProfileSet, errors: PackedStringArray = PackedStringArray()) -> GSNpcCatalogue:
+	var cat := GSNpcCatalogue.new()
 	for id in profiles.list_ids():
 		var res := load_def(profiles, id)
 		if res.ok:

@@ -1,7 +1,7 @@
 extends "res://addons/dot_npc/runtime/dot_npc_brain.gd"
 
 ## A brain for the self-test: walks at whatever it has committed to, and counts.
-## Extends a path, not [code]DotNpcBrain[/code], and the suite asserts that this file loads: that is the shape a
+## Extends a path, not [code]GSNpcBrain[/code], and the suite asserts that this file loads: that is the shape a
 ## brain in a mounted pack must have, since a class_name in it resolves to nothing.
 
 var thinks: int = 0

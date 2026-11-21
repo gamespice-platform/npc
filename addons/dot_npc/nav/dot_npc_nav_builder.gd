@@ -1,7 +1,7 @@
-class_name DotNpcNavBuilder
+class_name GSNpcNavBuilder
 extends RefCounted
 
-## Turns a code-built map's own constants into [DotNpcNavData]; what a game's `tools/export_nav.gd` calls.
+## Turns a code-built map's own constants into [GSNpcNavData]; what a game's `tools/export_nav.gd` calls.
 ## A game hands it the walkable rectangles and obstacle boxes it drew the map from, and gets a point graph back.
 ## The recorded digest of those constants is what fails a suite when a wall moves and the tool was not re-run.
 
@@ -80,7 +80,7 @@ var _progress := 0.0
 var _stage := "idle"
 var _phase := Phase.IDLE
 var _deadline := -1
-var _nav: DotNpcNavData = null
+var _nav: GSNpcNavData = null
 var _map_id: StringName = &""
 var _seen := {}
 var _positions: Array[Vector3] = []
@@ -99,7 +99,7 @@ var _set_index := 0
 var _set_cursor := 0
 var _cursor := 0
 var _edge_total := 0
-## Obstacle indexes by cell (see [DotNpcNavIndex]); built on first use.
+## Obstacle indexes by cell (see [GSNpcNavIndex]); built on first use.
 var _obstacle_cells: Dictionary = {}
 var _cover_cells: Dictionary = {}
 
@@ -113,7 +113,7 @@ const LINK_EXAMPLES := 3
 func add_floor(
 	area: AABB,
 	stand_height: float,
-	area_id: int = DotNpcNavData.AREA_GROUND,
+	area_id: int = GSNpcNavData.AREA_GROUND,
 	point_flags: int = 0
 ) -> void:
 	_floors.append({
@@ -129,7 +129,7 @@ func add_floor(
 func add_points(
 	points: PackedVector3Array,
 	max_slope: float,
-	area_id: int = DotNpcNavData.AREA_GROUND,
+	area_id: int = GSNpcNavData.AREA_GROUND,
 	point_flags: int = 0
 ) -> void:
 	_point_sets.append({"points": points, "slope": max_slope, "area_id": area_id, "flags": point_flags})
@@ -149,10 +149,10 @@ func add_link(from: Vector3, to: Vector3, link_flags: int = 0, reach: float = 0.
 	_links.append([from, to, link_flags, reach, height_tolerance])
 
 
-## Generates the data in one call, on this thread. [param digest] comes from [method DotNpcNavData.digest_of].
+## Generates the data in one call, on this thread. [param digest] comes from [method GSNpcNavData.digest_of].
 ## For a build that must not stall a frame use [method begin] and [method step] (time-sliced on the
 ## main thread) or call [method step] with no budget from a worker thread.
-func build(map_id: StringName, digest: String) -> DotNpcNavData:
+func build(map_id: StringName, digest: String) -> GSNpcNavData:
 	begin(map_id, digest)
 
 	while not step(0.0) and not _cancelled:
@@ -167,7 +167,7 @@ func is_done() -> bool:
 
 
 ## The finished data; null until [method is_done].
-func result() -> DotNpcNavData:
+func result() -> GSNpcNavData:
 	return _nav if _phase == Phase.DONE and not _cancelled else null
 
 
@@ -202,7 +202,7 @@ func link_report() -> Dictionary:
 
 ## Starts a build that [method step] then runs in pieces. Nothing is generated yet.
 func begin(map_id: StringName, digest: String) -> void:
-	_nav = DotNpcNavData.new()
+	_nav = GSNpcNavData.new()
 	_nav.map_id = map_id
 	_nav.source_digest = digest
 	_nav.point_radius = point_radius
@@ -301,7 +301,7 @@ func _step_floors() -> void:
 		var floor_data: Dictionary = _floors[_floor_index]
 		var area: AABB = floor_data["area"]
 		var height := float(floor_data["height"])
-		var floor_area_id := int(floor_data.get("area_id", DotNpcNavData.AREA_GROUND))
+		var floor_area_id := int(floor_data.get("area_id", GSNpcNavData.AREA_GROUND))
 		var floor_flags := int(floor_data.get("flags", 0))
 
 		if is_nan(_column):
@@ -314,7 +314,7 @@ func _step_floors() -> void:
 				var p := Vector3(_column, height, z)
 				z += spacing
 
-				if _blocked(p) or DotNpcNavIndex.already_placed(p, _seen, _positions, spacing, spacing * 0.5):
+				if _blocked(p) or GSNpcNavIndex.already_placed(p, _seen, _positions, spacing, spacing * 0.5):
 					continue
 
 				_place(p, floor_area_id, floor_flags, 0.0)
@@ -341,7 +341,7 @@ func _step_sets() -> void:
 			var p := pts[_set_cursor]
 			_set_cursor += 1
 
-			if not (_blocked(p) or DotNpcNavIndex.already_placed(p, _seen, _positions, spacing, spacing * 0.5)):
+			if not (_blocked(p) or GSNpcNavIndex.already_placed(p, _seen, _positions, spacing, spacing * 0.5)):
 				_place(p, int(set_data["area_id"]), int(set_data["flags"]), float(set_data["slope"]))
 
 			if (_set_cursor & 255) == 0 and _timed_out():
@@ -396,7 +396,7 @@ func _step_buckets() -> void:
 			return
 
 	if _obstacle_cells.is_empty() and not _obstacles.is_empty():
-		_obstacle_cells = DotNpcNavIndex.index_obstacles(_obstacles, clearance)
+		_obstacle_cells = GSNpcNavIndex.index_obstacles(_obstacles, clearance)
 
 	_phase = Phase.EDGES
 	_cursor = 0
@@ -495,7 +495,7 @@ func _cover_chunk(from: int, to: int) -> Variant:
 	var has := PackedByteArray()
 
 	for i in range(from, to):
-		var found := DotNpcNavIndex.cover_at(_nav, _cover_cells, _obstacles, cover_range, i)
+		var found := GSNpcNavIndex.cover_at(_nav, _cover_cells, _obstacles, cover_range, i)
 		normals.append(found[0])
 		has.append(1 if found[1] else 0)
 
@@ -588,7 +588,7 @@ func _step_links() -> void:
 
 	if _unlinked > 0 and log_summary:
 		var report := link_report()
-		DotLog.warn(CHANNEL, "navigation links found no point at one end", report)
+		GSLog.warn(CHANNEL, "navigation links found no point at one end", report)
 
 	if bridge_gap > 0.0:
 		_bridge_pieces()
@@ -616,16 +616,16 @@ func _keep_needed_deferred_links() -> void:
 	if _deferred_links.is_empty():
 		return
 
-	var parent := DotNpcNavIndex.pieces(_nav, _positions.size())
+	var parent := GSNpcNavIndex.pieces(_nav, _positions.size())
 
 	for d: Array in _deferred_links:
 		var a: int = d[0]
 		var b: int = d[1]
 		var pair: Array = d[2]
 
-		if DotNpcNavIndex.piece_of(parent, a) != DotNpcNavIndex.piece_of(parent, b):
+		if GSNpcNavIndex.piece_of(parent, a) != GSNpcNavIndex.piece_of(parent, b):
 			_connect_link(a, b, pair)
-			DotNpcNavIndex.join_pieces(parent, a, b)
+			GSNpcNavIndex.join_pieces(parent, a, b)
 		else:
 			_unlinked += 1
 			if _unlinked_examples.size() < LINK_EXAMPLES:
@@ -636,13 +636,13 @@ func _keep_needed_deferred_links() -> void:
 
 ## Joins the nearest pairs of points across pieces, shortest first, one join for each pair of pieces.
 func _bridge_pieces() -> void:
-	var parent := DotNpcNavIndex.pieces(_nav, _positions.size())
+	var parent := GSNpcNavIndex.pieces(_nav, _positions.size())
 
 	var found: Array[Vector3] = []
 
 	for i in _positions.size():
 		for j in _nav.points_within(_positions[i], bridge_gap):
-			if j <= i or DotNpcNavIndex.piece_of(parent, i) == DotNpcNavIndex.piece_of(parent, j):
+			if j <= i or GSNpcNavIndex.piece_of(parent, i) == GSNpcNavIndex.piece_of(parent, j):
 				continue
 
 			if absf(_positions[i].y - _positions[j].y) > _rise(_positions[i], _positions[j], _slopes[i], _slopes[j]):
@@ -655,13 +655,13 @@ func _bridge_pieces() -> void:
 	var bridged := 0
 
 	for pair in found:
-		if DotNpcNavIndex.piece_of(parent, int(pair.y)) != DotNpcNavIndex.piece_of(parent, int(pair.z)):
+		if GSNpcNavIndex.piece_of(parent, int(pair.y)) != GSNpcNavIndex.piece_of(parent, int(pair.z)):
 			_nav.connect_points(int(pair.y), int(pair.z))
-			DotNpcNavIndex.join_pieces(parent, int(pair.y), int(pair.z))
+			GSNpcNavIndex.join_pieces(parent, int(pair.y), int(pair.z))
 			bridged += 1
 
 	if bridged > 0 and log_summary:
-		DotLog.debug(CHANNEL, "navigation pieces bridged", {"bridges": bridged, "gap": bridge_gap})
+		GSLog.debug(CHANNEL, "navigation pieces bridged", {"bridges": bridged, "gap": bridge_gap})
 
 
 func _step_cover() -> void:
@@ -672,7 +672,7 @@ func _step_cover() -> void:
 		return
 
 	if _cover_cells.is_empty() and not _obstacles.is_empty():
-		_cover_cells = DotNpcNavIndex.index_cover(_obstacles, cover_range)
+		_cover_cells = GSNpcNavIndex.index_cover(_obstacles, cover_range)
 
 	if workers > 1 and _deadline < 0 and total >= EDGE_BATCH * 4:
 		_run_parallel(_cover_chunk, W_POINTS + W_EDGES + W_LINKS, W_COVER, "cover")
@@ -695,7 +695,7 @@ func _step_cover() -> void:
 		var last := mini(_cursor + EDGE_BATCH, total)
 
 		for i in range(_cursor, last):
-			var found := DotNpcNavIndex.cover_at(_nav, _cover_cells, _obstacles, cover_range, i)
+			var found := GSNpcNavIndex.cover_at(_nav, _cover_cells, _obstacles, cover_range, i)
 			_cover_normal.append(found[0])
 			_cover_has.append(1 if found[1] else 0)
 
@@ -712,7 +712,7 @@ func _step_cover() -> void:
 func _apply_cover() -> void:
 	for i in _cover_has.size():
 		if _cover_has[i] != 0:
-			_nav.add_cover(_nav.points[i], _cover_normal[i], DotNpcNavData.Cover.IN_COVER)
+			_nav.add_cover(_nav.points[i], _cover_normal[i], GSNpcNavData.Cover.IN_COVER)
 
 
 func _finish() -> void:
@@ -737,10 +737,10 @@ func _under_feet() -> float:
 
 func _blocked(p: Vector3) -> bool:
 	if _obstacle_cells.is_empty() and not _obstacles.is_empty():
-		_obstacle_cells = DotNpcNavIndex.index_obstacles(_obstacles, clearance)
+		_obstacle_cells = GSNpcNavIndex.index_obstacles(_obstacles, clearance)
 
 	var bucket: Variant = _obstacle_cells.get(
-		Vector2i(floori(p.x / DotNpcNavIndex.OBSTACLE_CELL), floori(p.z / DotNpcNavIndex.OBSTACLE_CELL))
+		Vector2i(floori(p.x / GSNpcNavIndex.OBSTACLE_CELL), floori(p.z / GSNpcNavIndex.OBSTACLE_CELL))
 	)
 
 	if bucket == null:

@@ -1,12 +1,12 @@
-class_name DotNpcGibs
+class_name GSNpcGibs
 extends RefCounted
 
 ## What a severed limb looks like: the limb's own triangles as a tumbling body, a raw stump on what is left, and blood.
-## Drawn only; the server decides what came off ([DotNpcLimbs]). The limb is cut out of the model by vertex weight,
+## Drawn only; the server decides what came off ([GSNpcLimbs]). The limb is cut out of the model by vertex weight,
 ## not by scaling bones on a copy, which leaves stretched slivers; the skinned body hides it by collapsing its root bone.
 
-## The default cap; the live one is [member DotNpcGore.max_gibs].
-const MAX_GIBS := DotNpcGore.DEFAULT_MAX_GIBS
+## The default cap; the live one is [member GSNpcGore.max_gibs].
+const MAX_GIBS := GSNpcGore.DEFAULT_MAX_GIBS
 const GROUP := &"dot_npc_gibs"
 
 static var _mesh_cache: Dictionary = {}
@@ -246,7 +246,7 @@ static func bone_material() -> StandardMaterial3D:
 
 static func blood(burst: bool, dir: Vector3) -> CPUParticles3D:
 	var p := CPUParticles3D.new()
-	p.amount = int((40 if burst else 10) * DotNpcGore.spray_scale())
+	p.amount = int((40 if burst else 10) * GSNpcGore.spray_scale())
 	p.lifetime = 0.9 if burst else 0.8
 	p.one_shot = burst
 	p.explosiveness = 0.95 if burst else 0.0
@@ -273,13 +273,13 @@ static func spawn_gib(sk: Skeleton3D, model: Node, key: String, root: int, limb:
 		return null
 	var mesh := limb_mesh(sk, model, root, key)
 	var world := world_of(sk)
-	if not DotNpcGore.gibs_enabled():
+	if not GSNpcGore.gibs_enabled():
 		return null
 	# At the cap the oldest gib is reused, not freed and rebuilt: a crowd of kills costs no allocation churn.
 	# A gib already freed this frame is still in the group: never count or reuse it.
 	var live := world.get_tree().get_nodes_in_group(GROUP).filter(func(n: Node) -> bool: return not n.is_queued_for_deletion())
 	var gib: RigidBody3D = null
-	while live.size() >= DotNpcGore.max_gibs:
+	while live.size() >= GSNpcGore.max_gibs:
 		var oldest := live[0] as RigidBody3D
 		live.remove_at(0)
 		if gib == null and oldest != null:
@@ -319,7 +319,7 @@ static func spawn_gib(sk: Skeleton3D, model: Node, key: String, root: int, limb:
 	gib.linear_velocity = impulse + Vector3(randf_range(-1.0, 1.0), 2.5, randf_range(-1.0, 1.0))
 	gib.angular_velocity = Vector3(randf_range(-4.0, 4.0), randf_range(-4.0, 4.0), randf_range(-4.0, 4.0))
 	var spray := blood(true, impulse)
-	if DotNpcGore.spray_enabled():
+	if GSNpcGore.spray_enabled():
 		gib.add_child(spray)
 		spray.emitting = true
 	else:
@@ -416,7 +416,7 @@ static func sever(sk: Skeleton3D, model: Node, key: String, limb: StringName, d:
 	if not silent:
 		spawn_gib(sk, model, key, root, limb, d, joint, impulse)
 	collapse_bone(sk, model, root)
-	add_stump(sk, root, d, not silent and DotNpcGore.spray_enabled())
+	add_stump(sk, root, d, not silent and GSNpcGore.spray_enabled())
 	return joint
 
 
@@ -458,10 +458,10 @@ static func _stop_weak(ref: WeakRef) -> void:
 		p.emitting = false
 
 
-## Frees the oldest wound marks and pools until there is room for one more under [member DotNpcGore.max_wounds].
+## Frees the oldest wound marks and pools until there is room for one more under [member GSNpcGore.max_wounds].
 static func _make_room(tree: SceneTree) -> void:
 	var live := tree.get_nodes_in_group(WOUND_GROUP)
-	while live.size() >= DotNpcGore.max_wounds and not live.is_empty():
+	while live.size() >= GSNpcGore.max_wounds and not live.is_empty():
 		var oldest := live[0] as Node
 		live.remove_at(0)
 		oldest.get_parent().remove_child(oldest)
@@ -471,7 +471,7 @@ static func _make_room(tree: SceneTree) -> void:
 ## A wet mark on the body where it was hit, riding the nearest bone. Pooled and capped; null headless, with gore
 ## off, or when no bone is near. [param world_point] is on or near the surface.
 static func add_wound(sk: Skeleton3D, world_point: Vector3, size := 0.09) -> Node3D:
-	if not drawn() or not DotNpcGore.wounds_enabled() or sk == null or not sk.is_inside_tree():
+	if not drawn() or not GSNpcGore.wounds_enabled() or sk == null or not sk.is_inside_tree():
 		return null
 	var local := sk.global_transform.affine_inverse() * world_point
 	var best := -1
@@ -516,7 +516,7 @@ static func add_wound(sk: Skeleton3D, world_point: Vector3, size := 0.09) -> Nod
 ## A pool of blood on the floor at [param at] (a crawling body's trail): flat, shared mesh and material, capped
 ## with the wound marks and gone after [constant POOL_SECONDS]. Null headless or with gore off.
 static func add_pool(tree: SceneTree, at: Vector3, radius := 0.22) -> Node3D:
-	if not drawn() or not DotNpcGore.wounds_enabled() or tree == null:
+	if not drawn() or not GSNpcGore.wounds_enabled() or tree == null:
 		return null
 	_make_room(tree)
 	if _pool_mat == null:

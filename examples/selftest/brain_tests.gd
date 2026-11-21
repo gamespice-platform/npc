@@ -11,7 +11,7 @@ func _test_brains() -> void:
 	var npc := spawner.spawn(&"walker", Vector3.ZERO)
 
 	_check(npc.brain != null, "a definition naming a brain gets one")
-	_check(npc.brain is DotNpcBrain, "and it is a brain")
+	_check(npc.brain is GSNpcBrain, "and it is a brain")
 
 	var broken := spawner.spawn(&"broken", Vector3.ZERO)
 	_check(broken != null, "an NPC whose brain is not a brain still spawns",
@@ -31,7 +31,7 @@ func _test_brains() -> void:
 	var was_at := far_body.global_position
 	var was_turned := far_body.global_rotation
 	far_body.global_position = Vector3(3.0e7, 0.0, 3.0e7)
-	(npc.brain as DotNpcBrain).face(Vector3(1, 0, 1))
+	(npc.brain as GSNpcBrain).face(Vector3(1, 0, 1))
 	_check(far_body.global_rotation.is_equal_approx(was_turned), "face() from a position a metre cannot change does nothing")
 	far_body.global_position = was_at
 
@@ -89,16 +89,16 @@ func _test_stable_seeds() -> void:
 
 	# The game's own number (its entity id) wins over the spawn count, and zero falls back rather than
 	# giving every NPC the seed of "0". The stand-in here is where the NPC was placed.
-	var given := _seeded_run(0, 0, func(npc: DotNpcInstance) -> int:
+	var given := _seeded_run(0, 0, func(npc: GSNpcInstance) -> int:
 		return 4096 + roundi(npc.position().x))
-	var given_again := _seeded_run(53, 0, func(npc: DotNpcInstance) -> int:
+	var given_again := _seeded_run(53, 0, func(npc: GSNpcInstance) -> int:
 		return 4096 + roundi(npc.position().x))
 	_check(given == given_again and given != quiet,
 		"a seed_source number is used, and is as stable as what the game gave")
-	_check(_seeded_run(0, 0, func(_npc: DotNpcInstance) -> int: return 0) == quiet,
+	_check(_seeded_run(0, 0, func(_npc: GSNpcInstance) -> int: return 0) == quiet,
 		"and a seed_source answering 0 falls back to the spawn count")
 
-	var loose := _loose_npc(DotNpcDef.make(&"loose", BODY))
+	var loose := _loose_npc(GSNpcDef.make(&"loose", BODY))
 	_check(loose.seed == 0, "an NPC built by hand is unseeded, and says so with 0")
 	loose.node.free()
 	_done()
@@ -113,12 +113,12 @@ func _seeded_run(noise: int, base: int, source: Callable = Callable()) -> Array:
 		junk.append(Node.new() if i % 2 == 0 else Object.new())
 
 	var cat := _catalogue()
-	var chooser := DotNpcDef.make(&"chooser", BODY)
+	var chooser := GSNpcDef.make(&"chooser", BODY)
 	chooser.brain_script_path = CHOOSER
 	chooser.require_line_of_sight = false
 	cat.add(chooser)
 
-	var spawner := DotNpcSpawner.new()
+	var spawner := GSNpcSpawner.new()
 	spawner.catalogue = cat
 	spawner.limits = _limits()
 	spawner.authoritative = true
@@ -143,7 +143,7 @@ func _seeded_run(noise: int, base: int, source: Callable = Callable()) -> Array:
 	return out
 
 
-## A brain and its NPC point at each other. See [method DotNpcBrain.unbind].
+## A brain and its NPC point at each other. See [method GSNpcBrain.unbind].
 func _test_brains_are_released() -> void:
 	_section("a brain and its NPC let go of each other")
 
@@ -183,9 +183,9 @@ func _test_damage() -> void:
 	# Captured Arrays rather than counters. A GDScript lambda captures locals BY
 	# VALUE, so a counter incremented in a handler stays zero outside it and the test
 	# reports a failure for a signal that fired perfectly.
-	spawner.died.connect(func(_n: DotNpcInstance, by: StringName) -> void:
+	spawner.died.connect(func(_n: GSNpcInstance, by: StringName) -> void:
 		deaths.append(by))
-	spawner.removed.connect(func(_n: DotNpcInstance, reason: StringName) -> void:
+	spawner.removed.connect(func(_n: GSNpcInstance, reason: StringName) -> void:
 		removals.append(reason))
 
 	_check(spawner.damage(npc.instance_id, 30.0, &"p") == 30.0, "damage lands")
@@ -198,7 +198,7 @@ func _test_damage() -> void:
 		"an overkill takes exactly what was left")
 	_check(deaths.size() == 1 and deaths[0] == &"p", "and it dies, naming who did it")
 	_check(
-		removals.size() == 1 and removals[0] == DotNpcSpawner.REASON_KILLED,
+		removals.size() == 1 and removals[0] == GSNpcSpawner.REASON_KILLED,
 		"and is removed as killed rather than as tidied away",
 		"a game with only `removed` would award a kill for a reclaim"
 	)
@@ -292,11 +292,11 @@ func _test_no_leaked_nodes() -> void:
 	var holder := Node3D.new()
 	_world.add_child(holder)
 
-	var spawner := DotNpcSpawner.new()
+	var spawner := GSNpcSpawner.new()
 	spawner.catalogue = _catalogue()
 	spawner.limits = _limits()
 	spawner.authoritative = true
-	spawner.world_ref = DotNodeRef.of_self()
+	spawner.world_ref = GSNodeRef.of_self()
 	holder.add_child(spawner)
 
 	for i in 12:

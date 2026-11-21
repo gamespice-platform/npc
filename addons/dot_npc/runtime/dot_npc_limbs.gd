@@ -1,4 +1,4 @@
-class_name DotNpcLimbs
+class_name GSNpcLimbs
 extends Node
 
 ## Shootable limbs for one NPC body: which region a point is in, how much each limb has taken, which are gone.
@@ -18,7 +18,7 @@ signal severed(limb: StringName, info: Dictionary)
 var species: StringName = &""
 ## `bones[0]` is the joint that comes off with everything below it. `{limb: {bones: [...], radius, health, kills?, slow?, attack?, damage_scale?, tip?}}` in config order.
 var defs: Dictionary = {}
-## Optional drawn body. If it has `sever_limb(limb, def, impulse) -> Vector3` that is called; otherwise [member skeleton] and [member model] are cut with [DotNpcGibs].
+## Optional drawn body. If it has `sever_limb(limb, def, impulse) -> Vector3` that is called; otherwise [member skeleton] and [member model] are cut with [GSNpcGibs].
 var view: Node3D = null
 ## The live skeleton and its model scene, when the body is drawn here.
 var skeleton: Skeleton3D = null
@@ -46,7 +46,7 @@ func setup(p_species: StringName, p_defs: Dictionary, p_view: Node3D = null) -> 
 		if view != null and view.has_method(&"restore_limbs"):
 			view.call(&"restore_limbs")
 		elif skeleton != null:
-			DotNpcGibs.restore(skeleton, model)
+			GSNpcGibs.restore(skeleton, model)
 	_health.clear()
 	_gone.clear()
 	for k in defs:
@@ -76,7 +76,7 @@ func mask() -> int:
 ## lost before this machine saw them, so each shows a stump with no gib and no blood.
 func apply_mask(m: int) -> void:
 	# The drawn level, not the rule: a player's view_cap 0 sees no stumps either.
-	if DotNpcGore.drawn_level() < DotNpcGore.STUMPS:
+	if GSNpcGore.drawn_level() < GSNpcGore.STUMPS:
 		return
 	var i := 0
 	for k in defs.keys():
@@ -109,9 +109,9 @@ func hit(world_point: Vector3, damage: float, impulse: Vector3 = Vector3.ZERO) -
 ## Hurts the named limb: for a caller whose hitbox already says which limb it was (overlapping regions can
 ## make [method limb_at] name another). Same return as [method hit].
 func hit_limb(k: StringName, world_point: Vector3, damage: float, impulse: Vector3 = Vector3.ZERO) -> StringName:
-	if k == &"" or not defs.has(k) or _gone.has(k) or damage <= 0.0 or not DotNpcGore.dismember_enabled():
+	if k == &"" or not defs.has(k) or _gone.has(k) or damage <= 0.0 or not GSNpcGore.dismember_enabled():
 		return &""
-	var scale := float((defs[k] as Dictionary).get("damage_scale", 1.0)) / DotNpcGore.health_scale()
+	var scale := float((defs[k] as Dictionary).get("damage_scale", 1.0)) / GSNpcGore.health_scale()
 	_health[k] = float(_health[k]) - damage * scale
 	if float(_health[k]) > 0.0:
 		return &""
@@ -122,7 +122,7 @@ func hit_limb(k: StringName, world_point: Vector3, damage: float, impulse: Vecto
 ## Takes a limb off, whatever it has left. [param world_point] is where it was cut (`Vector3.INF` to use the
 ## joint). [param silent] shows only the stump (no gib, no blood), for a limb that was already gone.
 func sever(limb: StringName, world_point: Vector3, impulse: Vector3, silent := false) -> void:
-	if not defs.has(limb) or _gone.has(limb) or not DotNpcGore.dismember_enabled():
+	if not defs.has(limb) or _gone.has(limb) or not GSNpcGore.dismember_enabled():
 		return
 	_gone[limb] = true
 	_health[limb] = 0.0
@@ -133,11 +133,11 @@ func sever(limb: StringName, world_point: Vector3, impulse: Vector3, silent := f
 	elif view != null and view.has_method(&"sever_limb"):
 		at = view.call(&"sever_limb", limb, d, impulse)
 	elif skeleton != null and model != null:
-		at = DotNpcGibs.sever(skeleton, model, "%s/%s" % [species, limb], limb, d, impulse, silent)
+		at = GSNpcGibs.sever(skeleton, model, "%s/%s" % [species, limb], limb, d, impulse, silent)
 	if not at.is_finite():
 		var host := get_parent() as Node3D
 		at = host.global_position if host != null and host.is_inside_tree() else Vector3.ZERO
-	DotLog.debug(CHANNEL, "limb severed", {"species": String(species), "limb": String(limb)})
+	GSLog.debug(CHANNEL, "limb severed", {"species": String(species), "limb": String(limb)})
 	severed.emit(limb, {"point": at, "impulse": impulse, "def": d})
 
 
@@ -168,11 +168,11 @@ func is_lethal() -> bool:
 ## The limb definitions of [param def_id] from `cfg/addons/dot-npc/*.yml` (`limbs: {<def_id>: {<limb>: {...}}}`).
 ## Empty when none are configured, so a definition without limbs is simply not shootable apart.
 static func defs_from_config(def_id: StringName) -> Dictionary:
-	var res := DotAddonConfig.load_dir(CONFIG_ADDON)
+	var res := GSAddonConfig.load_dir(CONFIG_ADDON)
 	if not res.ok:
-		DotLog.warn(CHANNEL, "limb config unreadable", {"error": res.message})
+		GSLog.warn(CHANNEL, "limb config unreadable", {"error": res.message})
 		return {}
-	var v: Variant = DotAddonConfig.get_value(res.value, "limbs.%s" % def_id, {})
+	var v: Variant = GSAddonConfig.get_value(res.value, "limbs.%s" % def_id, {})
 	return v if v is Dictionary else {}
 
 

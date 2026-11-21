@@ -1,4 +1,4 @@
-class_name DotNpcHover
+class_name GSNpcHover
 extends RefCounted
 
 ## A jetpack's flight as a state machine that wants a velocity: lift, cruise, hover, land when fuel is low,

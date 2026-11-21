@@ -1,6 +1,6 @@
 extends Node
 
-## A crowd repathing in one tick: [method DotNpcNavGraph.find_paths] inline against N workers.
+## A crowd repathing in one tick: [method GSNpcNavGraph.find_paths] inline against N workers.
 ## `godot --headless --path . res://examples/path_bench.tscn -- [--npcs=256] [--workers=4] [--rounds=5] [--nav=<cache file>]`
 ## Without --nav the graph is a generated 180 m square crossed by walls. Prints one RESULT line; exits 1 if the runs differ.
 
@@ -21,14 +21,14 @@ func _ready() -> void:
 		elif arg.begins_with("--nav="):
 			_nav_file = arg.trim_prefix("--nav=")
 
-	var graph := DotNpcNavGraph.new(_load())
+	var graph := GSNpcNavGraph.new(_load())
 	var pts := graph.data.points
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
 	var queries: Array = []
 
 	for i in _npcs:
-		var q := DotNpcNavGraph.PathQuery.new()
+		var q := GSNpcNavGraph.PathQuery.new()
 		q.from = pts[rng.randi() % pts.size()]
 		q.to = pts[rng.randi() % pts.size()]
 		q.snap_radius = 2.5
@@ -41,21 +41,21 @@ func _ready() -> void:
 	graph.find_paths(queries.slice(0, 1), 0)
 	graph.find_paths(queries.slice(0, 1), _workers)
 	var inline := _time(graph, queries, 0)
-	var reference: Array = queries.map(func(q: DotNpcNavGraph.PathQuery) -> PackedVector3Array: return q.points)
+	var reference: Array = queries.map(func(q: GSNpcNavGraph.PathQuery) -> PackedVector3Array: return q.points)
 	var pooled := _time(graph, queries, _workers)
 	var differ := 0
 
 	for i in queries.size():
-		if (queries[i] as DotNpcNavGraph.PathQuery).points != reference[i]:
+		if (queries[i] as GSNpcNavGraph.PathQuery).points != reference[i]:
 			differ += 1
 
 	print("RESULT %s" % JSON.stringify({"points": pts.size(), "npcs": _npcs,
-		"workers": DotParallel.resolve_workers(_workers), "inline_ms": inline, "pooled_ms": pooled,
+		"workers": GSParallel.resolve_workers(_workers), "inline_ms": inline, "pooled_ms": pooled,
 		"speedup": snappedf(inline / maxf(pooled, 0.001), 0.01), "differ": differ}))
 	get_tree().quit(1 if differ > 0 else 0)
 
 
-func _time(graph: DotNpcNavGraph, queries: Array, workers: int) -> float:
+func _time(graph: GSNpcNavGraph, queries: Array, workers: int) -> float:
 	var started := Time.get_ticks_usec()
 
 	for r in _rounds:
@@ -64,13 +64,13 @@ func _time(graph: DotNpcNavGraph, queries: Array, workers: int) -> float:
 	return snappedf((Time.get_ticks_usec() - started) / float(_rounds) / 1000.0, 0.01)
 
 
-func _load() -> DotNpcNavData:
+func _load() -> GSNpcNavData:
 	if _nav_file != "":
-		var got := DotNpcNavData.from_cache_bytes(FileAccess.get_file_as_bytes(_nav_file))
+		var got := GSNpcNavData.from_cache_bytes(FileAccess.get_file_as_bytes(_nav_file))
 		if got != null:
 			return got
 
-	var builder := DotNpcNavBuilder.new()
+	var builder := GSNpcNavBuilder.new()
 	builder.spacing = 2.0
 	builder.add_floor(AABB(Vector3(-90, 0, -90), Vector3(180, 0, 180)), 0.0)
 

@@ -1,8 +1,8 @@
-class_name DotNpcPath
+class_name GSNpcPath
 extends RefCounted
 
 ## A path being walked: the waypoints, where along them the NPC is, and when to repath.
-## Separate from [DotNpcNavGraph]: searching is rare and expensive, following is three subtractions per tick.
+## Separate from [GSNpcNavGraph]: searching is rare and expensive, following is three subtractions per tick.
 ## Advancing is a horizontal distance test: a 3D test that works on the flat never fires on a ramp.
 
 ## The world positions to walk, in order. First is where the path was requested from.
@@ -23,7 +23,7 @@ var computed_at: float = 0.0
 var goal_at_compute: Vector3 = Vector3.ZERO
 
 ## Whether the points stop short of the goal because it could not be reached.
-## Set by the producer (the spawner copies [member DotNpcNavGraph.last_partial]) so a brain does not
+## Set by the producer (the spawner copies [member GSNpcNavGraph.last_partial]) so a brain does not
 ## repath to an unreachable target for ever. Following a partial path is correct; believing it reaches the goal is not.
 var partial: bool = false
 

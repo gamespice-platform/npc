@@ -1,11 +1,11 @@
-class_name DotNpcPacer
+class_name GSNpcPacer
 extends RefCounted
 
 ## The spawner's think pacing in script: which NPCs think this tick and with how much time.
-## The twin of dot-sim's native `DotSimThinkPacer` (same calls, same answers to the bit); [DotNpcPacing] picks
+## The twin of dot-sim's native `GSSimThinkPacer` (same calls, same answers to the bit); [GSNpcPacing] picks
 ## one, or runs both and compares them.
 ##
-## A paced brain ([method DotNpcBrain.paces]) thinks once every `every` ticks and is handed the seconds it owes
+## A paced brain ([method GSNpcBrain.paces]) thinks once every `every` ticks and is handed the seconds it owes
 ## (the ticks' deltas summed in order). Rows keep the spawner's NPC order. A tick: [method advance] lists the due
 ## rows without changing any (an unpaced row always is, owing -1; a paced one when `since + 1 >= every`), the
 ## spawner thinks them, and [method settle] commits it (a thought row restarts with its new `every`, every

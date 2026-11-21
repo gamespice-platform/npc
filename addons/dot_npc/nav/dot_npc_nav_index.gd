@@ -1,7 +1,7 @@
-class_name DotNpcNavIndex
+class_name GSNpcNavIndex
 extends RefCounted
 
-## Spatial lookups [DotNpcNavBuilder] builds from: obstacle and cover buckets by cell, the already-placed
+## Spatial lookups [GSNpcNavBuilder] builds from: obstacle and cover buckets by cell, the already-placed
 ## test, and the piece (union-find) helpers. Static and stateless; the builder owns the dictionaries.
 
 ## Metres of (x, z) one obstacle bucket covers.
@@ -47,8 +47,8 @@ static func index_cover(obstacles: Array[AABB], cover_range: float) -> Dictionar
 ## Records a cover spot beside every point that has an obstacle close enough to hide behind, normal pointing at it.
 ## One spot per point, not per obstacle: an inside corner is one place good against two directions.
 ## Only IN_COVER is generated; sniper and ledge spots need whole-map traces a generator can add itself.
-static func cover_at(nav: DotNpcNavData, cells: Dictionary, obstacles: Array[AABB], cover_range: float, i: int) -> Array:
-	if (nav.flags_of(i) & DotNpcNavData.Flag.NO_HIDE) != 0:
+static func cover_at(nav: GSNpcNavData, cells: Dictionary, obstacles: Array[AABB], cover_range: float, i: int) -> Array:
+	if (nav.flags_of(i) & GSNpcNavData.Flag.NO_HIDE) != 0:
 		return [Vector3.ZERO, false]
 
 	var p := nav.points[i]
@@ -108,7 +108,7 @@ static func already_placed(p: Vector3, seen: Dictionary, positions: Array[Vector
 
 
 ## The union-find parents of [param count] points joined along the data's edges.
-static func pieces(nav: DotNpcNavData, count: int) -> PackedInt32Array:
+static func pieces(nav: GSNpcNavData, count: int) -> PackedInt32Array:
 	var parent := PackedInt32Array()
 	parent.resize(count)
 

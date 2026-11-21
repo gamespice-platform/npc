@@ -48,10 +48,10 @@ func _test_spawning() -> void:
 	var sides := PackedInt32Array()
 	sides.resize(40)
 	sides.fill(1)
-	var ranked: Array = DotNpcSenses.rank_many(0, 1, PackedVector3Array([Vector3.ZERO]), PackedFloat64Array([100.0]),
+	var ranked: Array = GSNpcSenses.rank_many(0, 1, PackedVector3Array([Vector3.ZERO]), PackedFloat64Array([100.0]),
 		PackedFloat64Array([0.0]), PackedInt32Array([0]), spots, loud, sides, 0)
 	_check((ranked[0] as PackedInt32Array).size() == 40, "candidate cap 0 ranks all 40", str((ranked[0] as PackedInt32Array).size()))
-	ranked = DotNpcSenses.rank_many(0, 1, PackedVector3Array([Vector3.ZERO]), PackedFloat64Array([100.0]),
+	ranked = GSNpcSenses.rank_many(0, 1, PackedVector3Array([Vector3.ZERO]), PackedFloat64Array([100.0]),
 		PackedFloat64Array([0.0]), PackedInt32Array([0]), spots, loud, sides, 4)
 	_check((ranked[0] as PackedInt32Array).size() == 4 and (ranked[0] as PackedInt32Array)[0] == 0,
 		"and cap 4 keeps the nearest four")
@@ -61,7 +61,7 @@ func _test_spawning() -> void:
 func _test_authority() -> void:
 	_section("authority")
 
-	var client := DotNpcSpawner.new()
+	var client := GSNpcSpawner.new()
 	client.catalogue = _catalogue()
 	client.limits = _limits()
 	client.authoritative = false
@@ -173,7 +173,7 @@ func _test_navigable_spawn() -> void:
 		"or the setting would mean 'no NPCs on a map with no nav data'"
 	)
 
-	var builder := DotNpcNavBuilder.new()
+	var builder := GSNpcNavBuilder.new()
 	builder.spacing = 2.0
 	builder.add_floor(AABB(Vector3(-10, 0, -10), Vector3(20, 0, 20)), 0.0)
 	spawner.set_nav_data(builder.build(&"test", "digest"))
@@ -205,10 +205,10 @@ func _test_navigable_spawn() -> void:
 const SPLIT_TICKS := 2000
 
 ## The gather/decide/apply split: the same 2000-tick hash of every brain's intents and the NPCs' places with decide inline, again,
-## and on two workers with DotParallel.verify. Applying in NPC order is what makes the three agree.
+## and on two workers with GSParallel.verify. Applying in NPC order is what makes the three agree.
 func _test_drive() -> void:
 	_section("a player's drive")
-	var drive := DotNpcDrive.new()
+	var drive := GSNpcDrive.new()
 	_check(not drive.active and drive.wish_velocity(5.0) == Vector3.ZERO, "idle: inactive and no wish")
 	drive.grab(&"p1")
 	drive.feed(Vector2(0, 1), 0.0, 1)
@@ -222,7 +222,7 @@ func _test_drive() -> void:
 	drive.feed(Vector2.ZERO, 0.0, 1)
 	_check(drive.take_pressed() == 1, "and a release then a press is a new edge")
 
-	var brain := DotNpcBrain.new()
+	var brain := GSNpcBrain.new()
 	brain.drive = drive
 	brain.think(0.1)
 	_check(brain.age > 0.0, "a driven brain still ages")
@@ -234,20 +234,20 @@ func _test_drive() -> void:
 func _test_think_split() -> void:
 	_section("split think")
 
-	var verify_before := DotParallel.verify
-	DotParallel.verify = true
-	var failures_before := DotParallel.verify_failures
+	var verify_before := GSParallel.verify
+	GSParallel.verify = true
+	var failures_before := GSParallel.verify_failures
 	var off := _split_run(0)
 	var off_again := _split_run(0)
 	var on := _split_run(2)
-	DotParallel.verify = verify_before
+	GSParallel.verify = verify_before
 
 	_check(off[1] == 24 * SPLIT_TICKS, "every split brain applied every tick", "%d applies" % off[1])
 	_check(off[0] != 0 and off[2] > 1, "the hash covers distinct intents", "%s" % [off])
 	_check(off[0] == off_again[0], "off against off: the same hash of 2000 ticks", "%d vs %d" % [off[0], off_again[0]])
 	_check(on[0] == off[0], "workers 2 against off: the same hash",
-		"%d vs %d%s" % [on[0], off[0], "" if DotParallel.resolve_workers(2) > 0 else " (no threads here: inline)"])
-	_check(DotParallel.verify_failures == failures_before, "and verify found no task that differs between runs")
+		"%d vs %d%s" % [on[0], off[0], "" if GSParallel.resolve_workers(2) > 0 else " (no threads here: inline)"])
+	_check(GSParallel.verify_failures == failures_before, "and verify found no task that differs between runs")
 	_done()
 
 
@@ -257,7 +257,7 @@ func _split_run(workers: int) -> Array:
 	limits.world_budget = 0
 	limits.per_kind_cap = 0
 	var spawner := _spawner(limits)
-	var def := DotNpcDef.make(&"splitter", BODY)
+	var def := GSNpcDef.make(&"splitter", BODY)
 	def.brain_script_path = "res://fixtures/split_brain.gd"
 	def.max_health = 100.0
 	def.require_line_of_sight = false
@@ -311,7 +311,7 @@ func _test_pacing() -> void:
 	_check(toggled == off, "pacing toggled every 97 ticks: the same log", _pace_diff(toggled, off))
 
 	# Five checks either way (CHECKS): with GameSpice Sim the native pacer, without it the fallback when native is asked for.
-	if ClassDB.class_exists(&"DotSimThinkPacer"):
+	if ClassDB.class_exists(&"GSSimThinkPacer"):
 		var checks := [0, 0]
 		var native := _pace_run(true, true, 0, checks)
 		var native_toggled := _pace_run(true, true, 97)
@@ -341,7 +341,7 @@ func _pace_run(pacing: bool, native: bool, toggle_every: int, checks: Array = []
 	limits.per_kind_cap = 0
 	limits.spawn_interval = 0.0
 	var spawner := _spawner(limits)
-	var def := DotNpcDef.make(&"pacer", BODY)
+	var def := GSNpcDef.make(&"pacer", BODY)
 	def.brain_script_path = "res://fixtures/paced_brain.gd"
 	def.max_health = 100.0
 	def.require_line_of_sight = false

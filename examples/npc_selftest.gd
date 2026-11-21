@@ -13,7 +13,7 @@ const CHECKS := 243 + 23 + 15 + 6 + 3 + 4 + 4 + 3 + 13 + 4 + 2 + 11 + 3 + 3 + 3 
 const SECTIONS := 45
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -102,7 +102,7 @@ func _test_nav_at_scale() -> void:
 	_section("navigation at scale")
 
 	var started := Time.get_ticks_msec()
-	var builder := DotNpcNavBuilder.new()
+	var builder := GSNpcNavBuilder.new()
 	builder.spacing = 1.0
 	builder.point_radius = 1.0
 	builder.clearance = 0.35
@@ -142,7 +142,7 @@ func _test_nav_at_scale() -> void:
 
 	_check(mismatches == 0, "the bucket index answers exactly what a scan of every point does", "%d of 300 differ" % mismatches)
 
-	var graph := DotNpcNavGraph.new(nav)
+	var graph := GSNpcNavGraph.new(nav)
 	started = Time.get_ticks_msec()
 	var path := graph.find_path(Vector3(-58, 0, -38), Vector3(58, 0, 38), 1.5)
 	var path_ms := Time.get_ticks_msec() - started
@@ -164,13 +164,13 @@ func _test_nav_at_scale() -> void:
 	_done()
 
 
-func _nav_scale_native_vs_script(nav: DotNpcNavData, graph: DotNpcNavGraph, rng: RandomNumberGenerator) -> void:
+func _nav_scale_native_vs_script(nav: GSNpcNavData, graph: GSNpcNavGraph, rng: RandomNumberGenerator) -> void:
 	# The native search (AStar3D) against the script A* it replaced: same path length for random pairs, with and
 	# without a filter that makes some ground dearer, and much faster. Same length, not same points (equal-cost routes tie).
-	var script_graph := DotNpcNavGraph.new(nav)
+	var script_graph := GSNpcNavGraph.new(nav)
 	script_graph.use_native_search = false
-	var dear := DotNpcNavFilter.new()
-	dear.set_area_cost(DotNpcNavData.AREA_GROUND, 1.0)
+	var dear := GSNpcNavFilter.new()
+	dear.set_area_cost(GSNpcNavData.AREA_GROUND, 1.0)
 	var longer := 0
 	var native_us := 0
 	var script_us := 0
@@ -201,11 +201,11 @@ func _test_nav_smoothing() -> void:
 	_section("navigation smoothing")
 
 	# An empty room. Every waypoint between the ends is the grid's, not the world's.
-	var builder := DotNpcNavBuilder.new()
+	var builder := GSNpcNavBuilder.new()
 	builder.spacing = 2.0
 	builder.add_floor(AABB(Vector3(-12, 0, -12), Vector3(24, 0, 24)), 0.0)
 
-	var graph := DotNpcNavGraph.new(builder.build(&"open", "digest"))
+	var graph := GSNpcNavGraph.new(builder.build(&"open", "digest"))
 	var from := Vector3(-9, 0, -9)
 	var to := Vector3(9, 0, 9)
 
@@ -254,11 +254,11 @@ func _test_nav_smoothing() -> void:
 ## Smoothing must not graze a corner closer than a body (0.32 m) even though a sample only has to be near a point.
 func _smoothing_keeps_a_body_off_corners() -> void:
 	var post := AABB(Vector3(-0.5, 0, -0.5), Vector3(1, 2, 1))
-	var builder := DotNpcNavBuilder.new()
+	var builder := GSNpcNavBuilder.new()
 	builder.spacing = 1.0
 	builder.add_floor(AABB(Vector3(-6, 0, -6), Vector3(12, 0, 12)), 0.0)
 	builder.add_obstacle(post)
-	var graph := DotNpcNavGraph.new(builder.build(&"post", "digest"))
+	var graph := GSNpcNavGraph.new(builder.build(&"post", "digest"))
 	graph.straight_width_ratio = 0.5
 	var closest := INF
 	var paths := 0
@@ -276,8 +276,8 @@ func _smoothing_keeps_a_body_off_corners() -> void:
 	_check(paths > 0 and closest >= 0.32, "a smoothed leg passes a corner at least a body away", "%d paths, closest %.2f" % [paths, closest])
 
 	# The leg memo must follow the ratio: a graph that smoothed at 0.75 and was then set to 0.5 answers as a fresh 0.5 one.
-	var warm := DotNpcNavGraph.new(builder.build(&"post", "digest"))
-	var fresh := DotNpcNavGraph.new(builder.build(&"post", "digest"))
+	var warm := GSNpcNavGraph.new(builder.build(&"post", "digest"))
+	var fresh := GSNpcNavGraph.new(builder.build(&"post", "digest"))
 	fresh.straight_width_ratio = 0.5
 	var same := true
 
@@ -292,16 +292,16 @@ func _smoothing_keeps_a_body_off_corners() -> void:
 	_check(same, "changing the straight-width ratio drops the remembered legs", "")
 
 
-func _smoothing_around_wall(graph: DotNpcNavGraph, from: Vector3, to: Vector3) -> void:
+func _smoothing_around_wall(graph: GSNpcNavGraph, from: Vector3, to: Vector3) -> void:
 	# The one that matters. Smoothing is a shortcut and a shortcut through a wall is
 	# worse than the staircase it replaced.
 	var wall := AABB(Vector3(-2, 0, -12), Vector3(4, 4, 20))
-	var bent := DotNpcNavBuilder.new()
+	var bent := GSNpcNavBuilder.new()
 	bent.spacing = 2.0
 	bent.add_floor(AABB(Vector3(-12, 0, -12), Vector3(24, 0, 24)), 0.0)
 	bent.add_obstacle(wall)
 
-	var bent_graph := DotNpcNavGraph.new(bent.build(&"bent", "digest"))
+	var bent_graph := GSNpcNavGraph.new(bent.build(&"bent", "digest"))
 	var around := bent_graph.find_smooth_path(Vector3(-8, 0, 0), Vector3(8, 0, 0), 3.0)
 
 	_check(not around.is_empty(), "a smoothed path is still found around a wall")
@@ -346,25 +346,25 @@ func _test_nav_filter() -> void:
 
 	# The water strip is added first, because the first floor to claim a grid cell
 	# keeps it — so the ground added afterwards fills in around it.
-	var builder := DotNpcNavBuilder.new()
+	var builder := GSNpcNavBuilder.new()
 	builder.spacing = 2.0
 	builder.generate_cover = false
 	# Aligned with the ground grid on purpose: both floors start on an odd metre so their cells coincide.
 	# Offset grids give two interleaved sets of points and the strip stops being a barrier (a generator's usual mistake).
 	var water := AABB(Vector3(-4, 0, -6), Vector3(8, 0, 12))
-	builder.add_floor(water, 0.0, DotNpcNavData.AREA_WATER)
+	builder.add_floor(water, 0.0, GSNpcNavData.AREA_WATER)
 	builder.add_floor(AABB(Vector3(-14, 0, -14), Vector3(28, 0, 28)), 0.0)
 
 	var nav := builder.build(&"pond", "digest")
 	var wet := 0
 	for i in nav.point_count():
-		if nav.area_of(i) == DotNpcNavData.AREA_WATER:
+		if nav.area_of(i) == GSNpcNavData.AREA_WATER:
 			wet += 1
 
 	_check(wet > 0, "a floor can be given an area id", "%d wet points" % wet)
 	_check(wet < nav.point_count(), "and the rest of the map keeps its own")
 
-	var graph := DotNpcNavGraph.new(nav)
+	var graph := GSNpcNavGraph.new(nav)
 	var from := Vector3(-10, 0, 0)
 	var to := Vector3(10, 0, 0)
 
@@ -374,10 +374,10 @@ func _test_nav_filter() -> void:
 		"with no filter the shortest way is straight through the water"
 	)
 
-	var filter := DotNpcNavFilter.new()
-	_check(filter.set_area_cost(DotNpcNavData.AREA_WATER, 20.0).ok, "an area can cost more")
+	var filter := GSNpcNavFilter.new()
+	_check(filter.set_area_cost(GSNpcNavData.AREA_WATER, 20.0).ok, "an area can cost more")
 	_check(
-		not filter.set_area_cost(DotNpcNavData.AREA_WATER, 0.0).ok,
+		not filter.set_area_cost(GSNpcNavData.AREA_WATER, 0.0).ok,
 		"and cannot cost nothing: a free step makes A* prefer a cycle"
 	)
 	_check(not filter.set_area_cost(999, 2.0).ok, "an area id out of range is refused")
@@ -400,7 +400,7 @@ func _test_nav_filter() -> void:
 
 	# The whole reason cost beats a ban: make the detour expensive enough and the NPC
 	# wades, rather than standing at the edge of the puddle for ever.
-	filter.set_area_cost(DotNpcNavData.AREA_WATER, 1.05)
+	filter.set_area_cost(GSNpcNavData.AREA_WATER, 1.05)
 	var wading := graph.find_path(from, to, 3.0)
 	_check(
 		_path_visits(wading, water),
@@ -413,22 +413,22 @@ func _test_nav_filter() -> void:
 
 func _nav_filter_flags(from: Vector3, to: Vector3) -> void:
 	# Flags are the other half: impassable rather than expensive.
-	var crouch_builder := DotNpcNavBuilder.new()
+	var crouch_builder := GSNpcNavBuilder.new()
 	crouch_builder.spacing = 2.0
 	crouch_builder.generate_cover = false
 	crouch_builder.add_floor(
 		AABB(Vector3(-4, 0, -30), Vector3(8, 0, 60)), 0.0,
-		DotNpcNavData.AREA_GROUND, DotNpcNavData.Flag.CROUCH
+		GSNpcNavData.AREA_GROUND, GSNpcNavData.Flag.CROUCH
 	)
 	crouch_builder.add_floor(AABB(Vector3(-14, 0, -14), Vector3(28, 0, 28)), 0.0)
 
-	var tunnel := DotNpcNavGraph.new(crouch_builder.build(&"tunnel", "digest"))
+	var tunnel := GSNpcNavGraph.new(crouch_builder.build(&"tunnel", "digest"))
 	_check(
 		not tunnel.find_path(from, to, 3.0).is_empty(),
 		"something that can crouch gets through a crouch corridor"
 	)
 
-	tunnel.filter = DotNpcNavFilter.walking_only()
+	tunnel.filter = GSNpcNavFilter.walking_only()
 	_check(
 		tunnel.find_path(from, to, 3.0).is_empty(),
 		"and something that cannot, does not"
@@ -442,10 +442,10 @@ func _nav_filter_flags(from: Vector3, to: Vector3) -> void:
 		"standing on an excluded point is not a place to path from"
 	)
 
-	_check(DotNpcNavFilter.neutral().is_neutral(), "a neutral filter says so")
-	_check(not DotNpcNavFilter.walking_only().is_neutral(), "and a real one does not")
+	_check(GSNpcNavFilter.neutral().is_neutral(), "a neutral filter says so")
+	_check(not GSNpcNavFilter.walking_only().is_neutral(), "and a real one does not")
 	_check(
-		not DotNpcNavFilter.neutral().duplicate_filter().is_neutral() == false,
+		not GSNpcNavFilter.neutral().duplicate_filter().is_neutral() == false,
 		"a filter can be copied"
 	)
 
@@ -458,14 +458,14 @@ func _test_spawner_pathing() -> void:
 
 	var spawner := _spawner(limits)
 
-	var builder := DotNpcNavBuilder.new()
+	var builder := GSNpcNavBuilder.new()
 	builder.spacing = 2.0
 	builder.generate_cover = false
 	# A crouch tunnel joining two rooms, and nothing else joining them.
 	builder.add_floor(AABB(Vector3(-4, 0, -4), Vector3(8, 0, 8)), 0.0)
 	builder.add_floor(
 		AABB(Vector3(4, 0, -2), Vector3(12, 0, 4)), 0.0,
-		DotNpcNavData.AREA_GROUND, DotNpcNavData.Flag.CROUCH
+		GSNpcNavData.AREA_GROUND, GSNpcNavData.Flag.CROUCH
 	)
 	builder.add_floor(AABB(Vector3(16, 0, -4), Vector3(8, 0, 8)), 0.0)
 
@@ -476,7 +476,7 @@ func _test_spawner_pathing() -> void:
 	_check(npc != null, "an NPC spawns in the near room")
 
 	var goal := Vector3(18, 0, 0)
-	var path := DotNpcPath.new()
+	var path := GSNpcPath.new()
 	var step := spawner.path_toward(npc, path, goal)
 
 	_check(not path.is_empty(), "and paths through the tunnel to the far room")
@@ -484,9 +484,9 @@ func _test_spawner_pathing() -> void:
 	_check(not path.partial, "and the path is not partial")
 
 	# The same map, the same NPC, one flag on its definition. Nothing else changes.
-	npc.def.nav_exclude_flags = DotNpcNavData.Flag.CROUCH
+	npc.def.nav_exclude_flags = GSNpcNavData.Flag.CROUCH
 
-	var blocked_path := DotNpcPath.new()
+	var blocked_path := GSNpcPath.new()
 	var blocked_step := spawner.path_toward(npc, blocked_path, goal)
 
 	_check(
@@ -503,7 +503,7 @@ func _test_spawner_pathing() -> void:
 	# it off must produce more waypoints for the same walk, or nothing is smoothing.
 	npc.def.nav_exclude_flags = 0
 
-	var open := DotNpcNavBuilder.new()
+	var open := GSNpcNavBuilder.new()
 	open.spacing = 2.0
 	open.generate_cover = false
 	open.add_floor(AABB(Vector3(-12, 0, -12), Vector3(24, 0, 24)), 0.0)
@@ -512,11 +512,11 @@ func _test_spawner_pathing() -> void:
 	var far := Vector3(9, 0, 9)
 	npc.node.global_position = Vector3(-9, 0, -9)
 
-	var smooth := DotNpcPath.new()
+	var smooth := GSNpcPath.new()
 	spawner.path_toward(npc, smooth, far)
 
 	spawner.smooth_paths = false
-	var rough := DotNpcPath.new()
+	var rough := GSNpcPath.new()
 	spawner.path_toward(npc, rough, far)
 
 	_check(
@@ -542,18 +542,18 @@ func _test_spawner_pathing() -> void:
 
 	# The flag has to survive a catalogue round trip, or a delivered NPC loses the one
 	# thing that keeps it out of a tunnel it cannot use.
-	var def := DotNpcDef.make(&"crawler", "res://x.tscn")
-	def.nav_exclude_flags = DotNpcNavData.Flag.CROUCH | DotNpcNavData.Flag.JUMP
-	var back := DotNpcDef.from_dictionary(def.to_dictionary())
+	var def := GSNpcDef.make(&"crawler", "res://x.tscn")
+	def.nav_exclude_flags = GSNpcNavData.Flag.CROUCH | GSNpcNavData.Flag.JUMP
+	var back := GSNpcDef.from_dictionary(def.to_dictionary())
 	_check(
 		back.nav_exclude_flags == def.nav_exclude_flags,
 		"and it survives a definition round trip"
 	)
 
-	var plain := DotNpcDef.from_dictionary(DotNpcDef.make(&"x", "res://x.tscn").to_dictionary())
+	var plain := GSNpcDef.from_dictionary(GSNpcDef.make(&"x", "res://x.tscn").to_dictionary())
 	_check(plain.nav_exclude_flags == 0, "a definition without one keeps none")
 
-	var path_flag := DotNpcPath.new()
+	var path_flag := GSNpcPath.new()
 	path_flag.partial = true
 	path_flag.set_points(PackedVector3Array([Vector3.ZERO, Vector3.ONE]), 0.0, Vector3.ONE)
 	_check(
@@ -564,7 +564,7 @@ func _test_spawner_pathing() -> void:
 
 	# A far goal that moves a little re-plans only with the plain drift, not with a drift ratio.
 	npc.node.global_position = Vector3(-9, 0, -9)
-	var drifting := DotNpcPath.new()
+	var drifting := GSNpcPath.new()
 	spawner.path_toward(npc, drifting, far)
 	var searched := spawner.nav.searches
 	spawner.path_toward(npc, drifting, far + Vector3(3, 0, 0))
@@ -585,13 +585,13 @@ func _test_spawner_pathing() -> void:
 func _test_path_workers() -> void:
 	_section("path workers")
 
-	var builder := DotNpcNavBuilder.new()
+	var builder := GSNpcNavBuilder.new()
 	builder.spacing = 2.0
 	builder.generate_cover = false
 	builder.add_floor(AABB(Vector3(-20, 0, -20), Vector3(40, 0, 40)), 0.0)
 	builder.add_floor(
 		AABB(Vector3(20, 0, -2), Vector3(10, 0, 4)), 0.0,
-		DotNpcNavData.AREA_GROUND, DotNpcNavData.Flag.CROUCH
+		GSNpcNavData.AREA_GROUND, GSNpcNavData.Flag.CROUCH
 	)
 	builder.add_floor(AABB(Vector3(30, 0, -8), Vector3(16, 0, 16)), 0.0)
 	builder.add_floor(AABB(Vector3(60, 0, 60), Vector3(6, 0, 6)), 0.0)
@@ -600,16 +600,16 @@ func _test_path_workers() -> void:
 		builder.add_obstacle(AABB(Vector3(-12 + k * 10, 0, -16 + (k % 2) * 8), Vector3(1, 3, 24)))
 
 	var data := builder.build(&"workers", "digest")
-	var graph := DotNpcNavGraph.new(data)
-	var crouchless := DotNpcNavFilter.new()
-	crouchless.exclude_flags = DotNpcNavData.Flag.CROUCH
+	var graph := GSNpcNavGraph.new(data)
+	var crouchless := GSNpcNavFilter.new()
+	crouchless.exclude_flags = GSNpcNavData.Flag.CROUCH
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 11
 	var goals: Array[Vector3] = [Vector3(40, 0, 0), Vector3(62, 0, 62), Vector3(500, 0, 500)]
 	var queries: Array = []
 
 	for i in 48:
-		var q := DotNpcNavGraph.PathQuery.new()
+		var q := GSNpcNavGraph.PathQuery.new()
 		q.from = Vector3(rng.randf_range(-18, 18), 0, rng.randf_range(-18, 18))
 		q.to = goals[i % 3] if i % 4 == 0 else Vector3(rng.randf_range(-18, 44), 0, rng.randf_range(-18, 18))
 		q.filter = crouchless if i % 2 == 0 else null
@@ -624,7 +624,7 @@ func _test_path_workers() -> void:
 	var partials: Array = []
 	var before := Vector2i(graph.searches, graph.failures)
 
-	for q: DotNpcNavGraph.PathQuery in queries:
+	for q: GSNpcNavGraph.PathQuery in queries:
 		graph.filter = q.filter
 		alone.append(
 			graph.find_smooth_path(q.from, q.to, q.snap_radius, q.allow_partial, q.horizon) if q.smooth
@@ -651,7 +651,7 @@ func _test_path_workers() -> void:
 		var same := 0
 
 		for i in queries.size():
-			var q: DotNpcNavGraph.PathQuery = queries[i]
+			var q: GSNpcNavGraph.PathQuery = queries[i]
 			if q.points == alone[i] and q.partial == partials[i]:
 				same += 1
 
@@ -671,26 +671,26 @@ func _test_path_workers() -> void:
 	# The spawner: off finds inline as it always did; on queues and answers at the end of the think.
 	var limits := _limits()
 	limits.spawn_snap_radius = 3.0
-	var spawners: Array[DotNpcSpawner] = [_spawner(limits), _spawner(limits)]
+	var spawners: Array[GSNpcSpawner] = [_spawner(limits), _spawner(limits)]
 	spawners[1].path_workers = 4
 	var paths: Array = [[], []]
 
 	for s in 2:
 		spawners[s].set_nav_data(data)
 		for i in 12:
-			var npc := spawners[s].spawn(&"walker", (queries[i] as DotNpcNavGraph.PathQuery).from)
-			var path := DotNpcPath.new()
-			spawners[s].path_toward(npc, path, (queries[i] as DotNpcNavGraph.PathQuery).to)
+			var npc := spawners[s].spawn(&"walker", (queries[i] as GSNpcNavGraph.PathQuery).from)
+			var path := GSNpcPath.new()
+			spawners[s].path_toward(npc, path, (queries[i] as GSNpcNavGraph.PathQuery).to)
 			paths[s].append(path)
 
 	_check(
-		(paths[0] as Array).any(func(p: DotNpcPath) -> bool: return not p.is_empty()),
+		(paths[0] as Array).any(func(p: GSNpcPath) -> bool: return not p.is_empty()),
 		"path_workers 0 searches inside path_toward, as before"
 	)
 
-	var threaded := DotParallel.resolve_workers(4) > 0
+	var threaded := GSParallel.resolve_workers(4) > 0
 	_check(
-		not threaded or (paths[1] as Array).all(func(p: DotNpcPath) -> bool: return p.is_empty()),
+		not threaded or (paths[1] as Array).all(func(p: GSNpcPath) -> bool: return p.is_empty()),
 		"path_workers 4 queues the repath instead of searching inline",
 		"skipped: this machine has no worker threads" if not threaded else ""
 	)
@@ -699,8 +699,8 @@ func _test_path_workers() -> void:
 	var agree := 0
 
 	for i in 12:
-		var a: DotNpcPath = paths[0][i]
-		var b: DotNpcPath = paths[1][i]
+		var a: GSNpcPath = paths[0][i]
+		var b: GSNpcPath = paths[1][i]
 		if a.points == b.points and a.partial == b.partial:
 			agree += 1
 

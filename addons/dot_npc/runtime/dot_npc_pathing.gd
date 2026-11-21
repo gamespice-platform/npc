@@ -1,16 +1,16 @@
-class_name DotNpcPathing
+class_name GSNpcPathing
 extends RefCounted
 ## The spawner's repath policy and the queue of repaths answered together on worker threads.
 
-var _spawner: DotNpcSpawner
-## def id -> DotNpcNavFilter, built on first use.
+var _spawner: GSNpcSpawner
+## def id -> GSNpcNavFilter, built on first use.
 var _filters: Dictionary = {}
-## [DotNpcPath, DotNpcNavGraph.PathQuery, goal] per queued repath, in the order asked.
+## [GSNpcPath, GSNpcNavGraph.PathQuery, goal] per queued repath, in the order asked.
 var _queue: Array = []
 var _pending: Dictionary = {}
 
 
-func _init(spawner: DotNpcSpawner) -> void:
+func _init(spawner: GSNpcSpawner) -> void:
 	_spawner = spawner
 
 
@@ -19,7 +19,7 @@ func reset() -> void:
 	_pending.clear()
 
 
-func path_toward(npc: DotNpcInstance, path: DotNpcPath, goal: Vector3) -> Vector3:
+func path_toward(npc: GSNpcInstance, path: GSNpcPath, goal: Vector3) -> Vector3:
 	var s := _spawner
 
 	if not s.has_nav() or npc == null or not npc.is_alive() or path == null:
@@ -36,7 +36,7 @@ func path_toward(npc: DotNpcInstance, path: DotNpcPath, goal: Vector3) -> Vector
 	var now := s.now()
 	var due := path.needs_repath(now, goal, interval, drift)
 
-	if due and (s.deferred_paths or DotParallel.resolve_workers(s.path_workers) > 0):
+	if due and (s.deferred_paths or GSParallel.resolve_workers(s.path_workers) > 0):
 		_enqueue(npc, path, goal)
 	elif due:
 		# The filter is set per search, not held on the graph: one graph serves every NPC and a
@@ -60,7 +60,7 @@ func path_toward(npc: DotNpcInstance, path: DotNpcPath, goal: Vector3) -> Vector
 	return path.advance(npc.position(), goal)
 
 
-func _enqueue(npc: DotNpcInstance, path: DotNpcPath, goal: Vector3) -> void:
+func _enqueue(npc: GSNpcInstance, path: GSNpcPath, goal: Vector3) -> void:
 	var key := path.get_instance_id()
 
 	if _pending.has(key):
@@ -68,7 +68,7 @@ func _enqueue(npc: DotNpcInstance, path: DotNpcPath, goal: Vector3) -> void:
 
 	var s := _spawner
 	_pending[key] = true
-	var q := DotNpcNavGraph.PathQuery.new()
+	var q := GSNpcNavGraph.PathQuery.new()
 	q.from = npc.position()
 	q.to = goal
 	q.filter = filter_for(npc.def)
@@ -98,21 +98,21 @@ func answer() -> void:
 	_spawner.nav.find_paths(queries, _spawner.path_workers)
 
 	for entry: Array in queue:
-		var path: DotNpcPath = entry[0]
-		var q: DotNpcNavGraph.PathQuery = entry[1]
+		var path: GSNpcPath = entry[0]
+		var q: GSNpcNavGraph.PathQuery = entry[1]
 		path.set_points(q.points, _spawner.now(), entry[2])
 		path.partial = q.partial
 
 
 ## Cached because it is otherwise rebuilt on every repath, for contents that never change after load.
-func filter_for(def: DotNpcDef) -> DotNpcNavFilter:
+func filter_for(def: GSNpcDef) -> GSNpcNavFilter:
 	if def == null or def.nav_exclude_flags == 0:
 		return null
 
 	if _filters.has(def.id):
 		return _filters[def.id]
 
-	var filter := DotNpcNavFilter.new()
+	var filter := GSNpcNavFilter.new()
 	filter.exclude_flags = def.nav_exclude_flags
 	_filters[def.id] = filter
 

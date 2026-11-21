@@ -8,7 +8,7 @@ const _ICON := "res://addons/dot_npc/icon_placeholder.svg"
 
 const _TYPES := [
 	[
-		"DotNpcSpawner",
+		"GSNpcSpawner",
 		"Node",
 		"res://addons/dot_npc/runtime/dot_npc_spawner.gd",
 	],

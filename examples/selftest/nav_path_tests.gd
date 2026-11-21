@@ -4,7 +4,7 @@ extends "res://examples/selftest/nav_tests.gd"
 
 ## A graph whose reach is one-way: only points west of x=0 are reachable from anywhere.
 class OneWayGraph:
-	extends DotNpcNavGraph
+	extends GSNpcNavGraph
 
 	func connected(a: int, b: int) -> bool:
 		if a < 0 or b < 0 or a >= data.points.size() or b >= data.points.size():
@@ -16,7 +16,7 @@ class OneWayGraph:
 func _test_nav_one_way() -> void:
 	_section("navigation one-way pieces")
 
-	var builder := DotNpcNavBuilder.new()
+	var builder := GSNpcNavBuilder.new()
 	builder.spacing = 2.0
 	builder.generate_cover = false
 	builder.add_floor(AABB(Vector3(-14, 0, -6), Vector3(30, 0, 12)), 0.0)
@@ -36,13 +36,13 @@ func _test_nav_partial() -> void:
 	_section("navigation partial paths")
 
 	# Two rooms with nothing joining them.
-	var builder := DotNpcNavBuilder.new()
+	var builder := GSNpcNavBuilder.new()
 	builder.spacing = 2.0
 	builder.generate_cover = false
 	builder.add_floor(AABB(Vector3(-14, 0, -6), Vector3(10, 0, 12)), 0.0)
 	builder.add_floor(AABB(Vector3(6, 0, -6), Vector3(10, 0, 12)), 0.0)
 
-	var graph := DotNpcNavGraph.new(builder.build(&"split", "digest"))
+	var graph := GSNpcNavGraph.new(builder.build(&"split", "digest"))
 	var from := Vector3(-12, 0, 0)
 	var to := Vector3(12, 0, 0)
 
@@ -75,7 +75,7 @@ func _test_nav_partial() -> void:
 
 	# The shortcut for a goal in another piece of the graph must end where a full search does.
 	# A neutral filter turns the shortcut off (it is filter-blind), so the search runs.
-	graph.filter = DotNpcNavFilter.neutral()
+	graph.filter = GSNpcNavFilter.neutral()
 	var searched := graph.find_path(from, to, 3.0, true)
 	graph.filter = null
 	_check(not searched.is_empty() and searched[searched.size() - 1].distance_to(end) < 0.01,
@@ -84,7 +84,7 @@ func _test_nav_partial() -> void:
 
 	# Walked to the end of a partial path, a follower waits for the interval before searching
 	# again; forty zombies at a shut gate searching every tick was most of a server's second.
-	var follower := DotNpcPath.new()
+	var follower := GSNpcPath.new()
 	follower.set_points(partial, 10.0, to)
 	follower.partial = true
 	follower.index = partial.size()
@@ -99,7 +99,7 @@ func _test_nav_cover() -> void:
 	_section("navigation cover")
 
 	var wall := AABB(Vector3(-1, 0, -10), Vector3(2, 3, 20))
-	var builder := DotNpcNavBuilder.new()
+	var builder := GSNpcNavBuilder.new()
 	builder.spacing = 2.0
 	builder.add_floor(AABB(Vector3(-12, 0, -12), Vector3(24, 0, 24)), 0.0)
 	builder.add_obstacle(wall)
@@ -144,7 +144,7 @@ func _test_nav_cover() -> void:
 	var far := nav.best_cover(Vector3(6, 0, 0), Vector3(-9, 0, 0), 1.0)
 	_check(far < 0, "nothing within reach means no cover, not the best of a bad lot")
 
-	var open := DotNpcNavBuilder.new()
+	var open := GSNpcNavBuilder.new()
 	open.spacing = 2.0
 	open.add_floor(AABB(Vector3(-12, 0, -12), Vector3(24, 0, 24)), 0.0)
 	_check(
@@ -152,11 +152,11 @@ func _test_nav_cover() -> void:
 		"a room with nothing in it has nowhere to hide"
 	)
 
-	var no_hide := DotNpcNavBuilder.new()
+	var no_hide := GSNpcNavBuilder.new()
 	no_hide.spacing = 2.0
 	no_hide.add_floor(
 		AABB(Vector3(-12, 0, -12), Vector3(24, 0, 24)), 0.0,
-		DotNpcNavData.AREA_GROUND, DotNpcNavData.Flag.NO_HIDE
+		GSNpcNavData.AREA_GROUND, GSNpcNavData.Flag.NO_HIDE
 	)
 	no_hide.add_obstacle(wall)
 	_check(
@@ -174,7 +174,7 @@ func _test_nav_cover() -> void:
 func _test_path() -> void:
 	_section("path following")
 
-	var path := DotNpcPath.new()
+	var path := GSNpcPath.new()
 	var points := PackedVector3Array([
 		Vector3(0, 0, 0), Vector3(4, 0, 0), Vector3(8, 0, 0)
 	])
@@ -186,7 +186,7 @@ func _test_path() -> void:
 		"and advances once the NPC is close enough"
 	)
 
-	var on_a_slope := DotNpcPath.new()
+	var on_a_slope := GSNpcPath.new()
 	on_a_slope.set_points(points, 0.0, Vector3(8, 0, 0))
 	_check(
 		on_a_slope.advance(Vector3(4.0, 3.0, 0.0)) == Vector3(8, 0, 0),

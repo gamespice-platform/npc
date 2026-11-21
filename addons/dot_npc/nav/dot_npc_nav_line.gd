@@ -1,9 +1,9 @@
-class_name DotNpcNavLine
+class_name GSNpcNavLine
 extends RefCounted
 
-## Straight-line walkability over a [DotNpcNavGraph]: the sampled corridor test, the prune's cut edges
+## Straight-line walkability over a [GSNpcNavGraph]: the sampled corridor test, the prune's cut edges
 ## indexed by cell, and the neighbour-sector check. Holds only caches; the graph passes itself in,
-## so there is no reference cycle. [method DotNpcNavGraph.can_walk_straight] is the public door.
+## so there is no reference cycle. [method GSNpcNavGraph.can_walk_straight] is the public door.
 
 ## Neighbours a point has when every cell round it is walkable (the grid's eight).
 const FULL_NEIGHBOURS := 8
@@ -11,7 +11,7 @@ const FULL_NEIGHBOURS := 8
 ## Whether an NPC can walk straight from [param a] to [param b].
 ## A point graph has no polygons to raycast, so the corridor is sampled. Stricter than a raycast at a
 ## doorway, deliberately: a wrong "yes" walks into a wall, a wrong "no" costs one corner.
-func can_walk_straight(g: DotNpcNavGraph, a: Vector3, b: Vector3, corridor: float = -1.0) -> bool:
+func can_walk_straight(g: GSNpcNavGraph, a: Vector3, b: Vector3, corridor: float = -1.0) -> bool:
 	if not g.is_ready():
 		return false
 
@@ -64,20 +64,20 @@ var _cut_index: Dictionary = {}
 var _cut_near: Dictionary = {}
 var _cut_indexed := false
 var _surrounded_memo: Dictionary = {}
-## [method DotNpcNavGraph.find_paths] smooths on worker threads, and they share the sector memo.
+## [method GSNpcNavGraph.find_paths] smooths on worker threads, and they share the sector memo.
 var _memo_lock := Mutex.new()
 
 
-## Builds the cut index now. [method DotNpcNavGraph.find_paths] calls it before its workers start:
+## Builds the cut index now. [method GSNpcNavGraph.find_paths] calls it before its workers start:
 ## built lazily on two threads at once, one read a half-filled dictionary and the engine crashed.
-func prepare(g: DotNpcNavGraph) -> void:
+func prepare(g: GSNpcNavGraph) -> void:
 	if not _cut_indexed:
 		_index_cuts(g)
 
 
 ## Whether the line a to b crosses an edge the data's prune cut (physics said a body cannot use it).
 ## Indexed by cell on first use; a line only meets the segments in the cells it passes through.
-func crosses_cut(g: DotNpcNavGraph, a: Vector3, b: Vector3) -> bool:
+func crosses_cut(g: GSNpcNavGraph, a: Vector3, b: Vector3) -> bool:
 	if not _cut_indexed:
 		_index_cuts(g)
 
@@ -112,7 +112,7 @@ func crosses_cut(g: DotNpcNavGraph, a: Vector3, b: Vector3) -> bool:
 	return false
 
 
-func _index_cuts(g: DotNpcNavGraph) -> void:
+func _index_cuts(g: GSNpcNavGraph) -> void:
 	var all := g.data.cut_edges()
 	var index: Dictionary = {}
 	var near: Dictionary = {}
@@ -133,11 +133,11 @@ func _index_cuts(g: DotNpcNavGraph) -> void:
 	_cut_indexed = true
 
 
-func _cut_size(g: DotNpcNavGraph) -> float:
+func _cut_size(g: GSNpcNavGraph) -> float:
 	return maxf(g.data.grid_spacing * 2.0, 1.0)
 
 
-func _cut_cell(g: DotNpcNavGraph, p: Vector3) -> Vector2i:
+func _cut_cell(g: GSNpcNavGraph, p: Vector3) -> Vector2i:
 	var size := _cut_size(g)
 	return Vector2i(floori(p.x / size), floori(p.z / size))
 
@@ -161,7 +161,7 @@ static func _segments_cross(a: Vector3, b: Vector3, c: Vector3, d: Vector3) -> b
 	return absf(lerpf(a.y, b.y, t) - lerpf(c.y, d.y, u)) < 1.0
 
 
-func sample_clear(g: DotNpcNavGraph, at: Vector3, point: int) -> bool:
+func sample_clear(g: GSNpcNavGraph, at: Vector3, point: int) -> bool:
 	if g.data.grid_spacing <= 0.0:
 		return true
 
@@ -173,7 +173,7 @@ func sample_clear(g: DotNpcNavGraph, at: Vector3, point: int) -> bool:
 
 ## Whether the point has a neighbour in every 45 degree sector within two cells. A count cannot tell: extended
 ## links keep it over [constant FULL_NEIGHBOURS] when a wall took the whole west side, and a line may graze that wall.
-func _surrounded(g: DotNpcNavGraph, point: int) -> bool:
+func _surrounded(g: GSNpcNavGraph, point: int) -> bool:
 	_memo_lock.lock()
 	var known: Variant = _surrounded_memo.get(point)
 	_memo_lock.unlock()
@@ -199,7 +199,7 @@ func _surrounded(g: DotNpcNavGraph, point: int) -> bool:
 	return full
 
 
-func are_neighbours(g: DotNpcNavGraph, a: int, b: int) -> bool:
+func are_neighbours(g: GSNpcNavGraph, a: int, b: int) -> bool:
 	for n in g.neighbours(a):
 		if n == b:
 			return true
