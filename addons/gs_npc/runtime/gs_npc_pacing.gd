@@ -59,7 +59,7 @@ func sync() -> void:
 
 	if native_wanted and not has_native and not _warned:
 		_warned = true
-		GSLog.warn(GSNpcSpawner.CHANNEL, "native think pacing asked for but dot-sim is not loaded; script pacing", {})
+		GSLog.warn(GSNpcSpawner.CHANNEL, "native think pacing asked for but gs-sim is not loaded; script pacing", {})
 
 	if on == _on and native == _native and verify == _verify:
 		return

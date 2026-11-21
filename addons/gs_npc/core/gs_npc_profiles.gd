@@ -1,9 +1,9 @@
 class_name GSNpcProfiles
 extends RefCounted
 
-## Loads [GSNpcDef] from `npc` profiles (cfg/addons/dot-npc/npc, cfg/game/<game>/npc, cfg/server/addons/dot-npc/npc, cfg/server/game/<game>/npc).
+## Loads [GSNpcDef] from `npc` profiles (cfg/addons/gs-npc/npc, cfg/game/<game>/npc, cfg/server/addons/gs-npc/npc, cfg/server/game/<game>/npc).
 
-const ADDON := "dot-npc"
+const ADDON := "gs-npc"
 const KIND := "npc"
 const WEIGHTS := ["trivial", "light", "normal", "heavy", "boss"]
 

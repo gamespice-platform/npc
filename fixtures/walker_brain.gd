@@ -1,4 +1,4 @@
-extends "res://addons/dot_npc/runtime/dot_npc_brain.gd"
+extends "res://addons/gs_npc/runtime/gs_npc_brain.gd"
 
 ## A brain for the self-test: walks at whatever it has committed to, and counts.
 ## Extends a path, not [code]GSNpcBrain[/code], and the suite asserts that this file loads: that is the shape a

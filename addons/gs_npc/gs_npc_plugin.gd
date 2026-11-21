@@ -4,13 +4,13 @@ extends EditorPlugin
 ## Editor entry point for GameSpice NPC. Registers inspector types only.
 ## No autoloads: a server running two worlds in one process holds two spawners, each with its own budget.
 
-const _ICON := "res://addons/dot_npc/icon_placeholder.svg"
+const _ICON := "res://addons/gs_npc/icon_placeholder.svg"
 
 const _TYPES := [
 	[
 		"GSNpcSpawner",
 		"Node",
-		"res://addons/dot_npc/runtime/dot_npc_spawner.gd",
+		"res://addons/gs_npc/runtime/gs_npc_spawner.gd",
 	],
 ]
 

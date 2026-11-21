@@ -4,7 +4,7 @@
 
 A director deciding whether it can afford four more zombies must answer that without loading four scenes, and a spawn menu of eighty entity kinds must not load eighty. So `GSNpcDef` carries the id, the scene path, the brain path, the cost, the health and the whole perception envelope as plain data, and the scene is loaded on the one occasion something is actually spawned.
 
-The consequence everything else follows from: **the brain is named by PATH, never by `class_name`.** A mounted dot-cloud pack arrives long after the project's script cache was built, so a `class_name` inside one resolves to nothing ([bugs-found](../../../docs/bugs-found.md)). `extends "res://addons/dot_npc/runtime/dot_npc_brain.gd"` works in a build and in a pack; `extends GSNpcBrain` works in a build only. `fixtures/walker_brain.gd` is deliberately written the supported way, so the suite cannot pass for a shape the addon does not support.
+The consequence everything else follows from: **the brain is named by PATH, never by `class_name`.** A mounted gs-cloud pack arrives long after the project's script cache was built, so a `class_name` inside one resolves to nothing ([bugs-found](../../../docs/bugs-found.md)). `extends "res://addons/gs_npc/runtime/gs_npc_brain.gd"` works in a build and in a pack; `extends GSNpcBrain` works in a build only. `fixtures/walker_brain.gd` is deliberately written the supported way, so the suite cannot pass for a shape the addon does not support.
 
 ## Server-authoritative, and not predicted
 
@@ -38,11 +38,11 @@ Perception is the single biggest cost in the addon, so it is **staggered**: `sen
 
 **A quiet NPC senses less often.** `GSNpcLimits.sense_quiet_mult` (default 1, off) multiplies `sense_period_ticks` for an NPC whose last pass found nobody in reach and that holds no target; the moment a candidate comes in reach it is back on the normal period, so detection is late by at most `(mult - 1) * period` ticks. GameSpice Game's `GSGameNpcLod` sets it from the `npc_sense_quiet` cvar.
 
-**The pass can run native** (`GSNpcSenses.native_enabled`, default false). With it on and dot-sim's `GSSimSenses` loaded (looked up by name, so nothing breaks without the library), `GSNpcPerception.perceive` hands the tick's due NPCs, the packed candidates and the live blockers to dot-sim in one call, which ranks, decides and casts the sight rays in the script's order and precision; the script then writes each NPC's result and emits `target_changed` as before. A subclass of `GSNpcSenses` keeps the script, since it may override `decide`. `native_verify` runs the script beside every native pass and counts disagreements in `native_mismatches`; game-zombie-zone's `headless_native_senses` is the parity suite. At 120 zombies it took senses from 4.08 to 2.38 ms a tick.
+**The pass can run native** (`GSNpcSenses.native_enabled`, default false). With it on and gs-sim's `GSSimSenses` loaded (looked up by name, so nothing breaks without the library), `GSNpcPerception.perceive` hands the tick's due NPCs, the packed candidates and the live blockers to gs-sim in one call, which ranks, decides and casts the sight rays in the script's order and precision; the script then writes each NPC's result and emits `target_changed` as before. A subclass of `GSNpcSenses` keeps the script, since it may override `decide`. `native_verify` runs the script beside every native pass and counts disagreements in `native_mismatches`; game-zombie-zone's `headless_native_senses` is the parity suite. At 120 zombies it took senses from 4.08 to 2.38 ms a tick.
 
 ### `sight_scale` is per NPC, the definition's range per kind
 
-`GSNpcInstance.sight_scale` multiplies `GSNpcDef.sight_range` for one NPC. How far a kind can see belongs in the catalogue; how attentive this one is belongs to its character, and dot-npc-ai's brain writes the character's `alertness` here. Sight only: hearing is a loudness the game measured, and scaling it would be an NPC that hears a footstep further than the footstep travels.
+`GSNpcInstance.sight_scale` multiplies `GSNpcDef.sight_range` for one NPC. How far a kind can see belongs in the catalogue; how attentive this one is belongs to its character, and gs-npc-ai's brain writes the character's `alertness` here. Sight only: hearing is a loudness the game measured, and scaling it would be an NPC that hears a footstep further than the footstep travels.
 
 ### Blindness and smoke are sight-only, default off (API 6)
 
@@ -61,7 +61,7 @@ Measuring a reaction time from `engaged_at` never finishes reacting (GameSpice N
 
 `GSNpcInstance.instance_id` is the engine's object id, and it is an identity: every spawner, director and game bridge keys by it, and it stays that. It is not a seed, because the engine hands ids out in allocation order: one more object created anywhere earlier in the process moves every NPC's id, and every choice drawn from it moves too. Behaviour then differs between builds and between a recorded run and its replay, and a timing check flips on a commit that touched nothing it measured.
 
-`GSNpcInstance.seed` is the seed. The spawner sets it before the brain is bound, so the brain's first choice already sees it: `GSRandomStream.new(seed_base).stream_for(&"npc", n).range_i_at(0, 2, 0x7FFFFFFF)`, where `n` is the spawner's count of adopted spawns. If the game assigns `seed_source` (`func(npc) -> int`, typically opening its `GSEntityTable` entry and returning the id), a non-zero answer is used instead, on the `&"npc_id"` stream so it cannot collide with a spawn count. The seed is always above 1 because dot-npc-ai reads 0 and 1 as "still the preset's seed"; 0 means an NPC built by hand that nobody seeded. `seed_base` is the session: a game sets it from its match seed, and a replay sets the recorded one. The counter is never reset, so a second round on the same spawner does not replay the first. A `Callable` rather than a `GSEntityTable` field, because naming dot-entity would make this addon fail to parse without it.
+`GSNpcInstance.seed` is the seed. The spawner sets it before the brain is bound, so the brain's first choice already sees it: `GSRandomStream.new(seed_base).stream_for(&"npc", n).range_i_at(0, 2, 0x7FFFFFFF)`, where `n` is the spawner's count of adopted spawns. If the game assigns `seed_source` (`func(npc) -> int`, typically opening its `GSEntityTable` entry and returning the id), a non-zero answer is used instead, on the `&"npc_id"` stream so it cannot collide with a spawn count. The seed is always above 1 because gs-npc-ai reads 0 and 1 as "still the preset's seed"; 0 means an NPC built by hand that nobody seeded. `seed_base` is the session: a game sets it from its match seed, and a replay sets the recorded one. The counter is never reset, so a second round on the same spawner does not replay the first. A `Callable` rather than a `GSEntityTable` field, because naming gs-entity would make this addon fail to parse without it.
 
 ## The limits, and why each one exists
 
@@ -91,7 +91,7 @@ A body far enough out that a metre cannot move it (one fallen out of a map and s
 
 ## Thinking as gather, decide, apply
 
-A brain that overrides `splits_think()` does not use `_npc_think`: the spawner runs every such brain's `_npc_gather` (main thread: nodes, rays, the world, copied to plain data), then every `_npc_decide` (pure; on `GSNpcSpawner.think_workers` workers, default 0, when every brain says `is_thread_safe()`), then every `_npc_apply` (main thread, in the spawner's NPC order, skipping an NPC an earlier apply killed). One order whatever the worker count, so intents and positions hash the same with threads off and on; non-split brains still think inline during the gather pass. dot-npc-ai's brain does not split yet.
+A brain that overrides `splits_think()` does not use `_npc_think`: the spawner runs every such brain's `_npc_gather` (main thread: nodes, rays, the world, copied to plain data), then every `_npc_decide` (pure; on `GSNpcSpawner.think_workers` workers, default 0, when every brain says `is_thread_safe()`), then every `_npc_apply` (main thread, in the spawner's NPC order, skipping an NPC an earlier apply killed). One order whatever the worker count, so intents and positions hash the same with threads off and on; non-split brains still think inline during the gather pass. gs-npc-ai's brain does not split yet.
 
 ## A player can hold the body
 
@@ -125,15 +125,15 @@ So `GSNpcBrain.unbind()` clears `npc`, `director` and `path` after calling `_npc
 
 ## Deliberately not here
 
-- **No behaviour tree, no state machine, no utility scoring.** That is dot-npc-ai, a separate addon, so a game that wants a catalogue and a budget does not install a decision engine it will not use.
-- **No population director.** That is dot-npc-ai-director.
+- **No behaviour tree, no state machine, no utility scoring.** That is gs-npc-ai, a separate addon, so a game that wants a catalogue and a budget does not install a decision engine it will not use.
+- **No population director.** That is gs-npc-ai-director.
 - **No animation.** A `GSNpcNetSync.State` is what a client picks one with; picking it is the game's.
 - **No melee, no ranged attacks, no damage types.** GameSpice Combat is where a weapon lives, and an NPC that swings is a brain calling into it.
 - Navigation's own gaps are in [navigation.md](navigation.md#not-here).
 
 ## Definitions from profiles
 
-`GSNpcProfiles.make_set(game)` gives a `GSProfileSet` for kind `npc` (tiers `cfg/addons/dot-npc/npc`, `cfg/game/<game>/npc`, `cfg/server/addons/dot-npc/npc`, `cfg/server/game/<game>/npc`); `GSNpcProfiles.load_def(set, id)` returns a validated `GSNpcDef` (`GSNpcDef.from_profile`). The common keys are the schema (`GSNpcProfiles.schema()`, the same names as `to_dictionary()`); `weight` is `trivial` to `boss`; keys a brain reads go under `extra:` and arrive as `def.extra`; `menu:` holds `category`, `icon`, `sort`, `hidden`. `set.list_ids()` scans directories and opens no file; `GSNpcProfiles.menu_entries(set)` loads the ymls (never the scenes). Code- and dictionary-built definitions are unchanged. Call `set.clear_cache()` when done: a set and its cached profiles reference each other.
+`GSNpcProfiles.make_set(game)` gives a `GSProfileSet` for kind `npc` (tiers `cfg/addons/gs-npc/npc`, `cfg/game/<game>/npc`, `cfg/server/addons/gs-npc/npc`, `cfg/server/game/<game>/npc`); `GSNpcProfiles.load_def(set, id)` returns a validated `GSNpcDef` (`GSNpcDef.from_profile`). The common keys are the schema (`GSNpcProfiles.schema()`, the same names as `to_dictionary()`); `weight` is `trivial` to `boss`; keys a brain reads go under `extra:` and arrive as `def.extra`; `menu:` holds `category`, `icon`, `sort`, `hidden`. `set.list_ids()` scans directories and opens no file; `GSNpcProfiles.menu_entries(set)` loads the ymls (never the scenes). Code- and dictionary-built definitions are unchanged. Call `set.clear_cache()` when done: a set and its cached profiles reference each other.
 
 ## Gore: what is drawn, and how a client learns the level
 

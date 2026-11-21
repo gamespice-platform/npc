@@ -1,4 +1,4 @@
-extends "res://addons/dot_npc/runtime/dot_npc_brain.gd"
+extends "res://addons/gs_npc/runtime/gs_npc_brain.gd"
 
 ## A brain for the self-test that thinks as gather, decide, apply: steers at the nearest of three fixed beacons
 ## and weaves by a hash of (seed, tick), so a run's whole intent history can be hashed.

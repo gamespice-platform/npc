@@ -45,7 +45,7 @@ static func forget_legs(g: GSNpcNavGraph) -> void:
 	for key: String in g._native:
 		var astar: AStar3D = g._native[key]
 		for meta: StringName in astar.get_meta_list():
-			if String(meta).begins_with("dot_legs"):
+			if String(meta).begins_with("gs_legs"):
 				astar.remove_meta(meta)
 
 
@@ -56,7 +56,7 @@ static func leg_memo(g: GSNpcNavGraph, corridor: float) -> Variant:
 		return null
 
 	var astar := g._native_for(g.filter)
-	var key := &"dot_legs" if corridor < 0.0 else StringName("dot_legs_%s" % corridor)
+	var key := &"gs_legs" if corridor < 0.0 else StringName("gs_legs_%s" % corridor)
 	var memo: Dictionary = astar.get_meta(key, {})
 
 	if memo.is_empty() or int(memo.get(&"count", 0)) > GSNpcNavGraph.LEG_MEMO_MAX:

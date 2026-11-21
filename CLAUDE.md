@@ -2,13 +2,13 @@
 
 **What an NPC is.** A catalogue of definitions, spawning with a population budget, health and damage, a perception layer that commits to a target, and navigation generated from the constants a code-built map was drawn from. 3D and 2D (the XZ plane).
 
-Also requires **GameSpice Profile** (`GSProfileSet`, `GSProfile`, `GSProfileRuntime`, split from GameSpice Core): link `addons/dot_profile` next to `addons/dot_core`.
+Also requires **GameSpice Profile** (`GSProfileSet`, `GSProfile`, `GSProfileRuntime`, split from GameSpice Core): link `addons/gs_profile` next to `addons/gs_core`.
 
-Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is specific to NPCs. How one decides is dot-npc-ai; population and pacing are dot-npc-ai-director.
+Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is specific to NPCs. How one decides is gs-npc-ai; population and pacing are gs-npc-ai-director.
 
 **Depends on GameSpice Core and nothing else.** Not GameSpice Net, GameSpice Combat or GameSpice Map: each is a seam a host wires up, and naming any of them would make this addon fail to parse in a project that does not have it.
 
-Profiles: `GSNpcProfiles` (the `npc` kind) offers `profile_schemas()`, so dot-core's `tools/profile_check.gd` (dot-ci `profiles: true`) validates a repo's `cfg/**/npc/*.yml` with no `--schema` script (API 4).
+Profiles: `GSNpcProfiles` (the `npc` kind) offers `profile_schemas()`, so gs-core's `tools/profile_check.gd` (gs-ci `profiles: true`) validates a repo's `cfg/**/npc/*.yml` with no `--schema` script (API 4).
 
 ## Read before
 
@@ -22,20 +22,20 @@ Profiles: `GSNpcProfiles` (the `npc` kind) offers `profile_schemas()`, so dot-co
 
 | Path | What |
 | --- | --- |
-| `addons/dot_npc/core/` | `GSNpcDef` (one kind, checkable without loading a scene), `GSNpcCatalogue` (JSON an operator edits), `GSNpcLimits` (a `GSConfig`), `GSNpcInstance` (one NPC in the world) |
-| `addons/dot_npc/runtime/` | `GSNpcSpawner` (the node a game adds: spawn, sense, think, hurt, reclaim), `GSNpcSenses`, `GSNpcBrain` (extended by path) |
-| `addons/dot_npc/nav/` | `GSNpcNavData` (points, areas, flags, cover, digest), `GSNpcNavBuilder`, `GSNpcNavFilter`, `GSNpcNavGraph` (A*, smoothing, partial paths; helpers `GSNpcNavLine` straight-walk and cut edges, `GSNpcNavSmooth` smoothing and leg memo, `GSNpcNavIndex` builder cell lookups), `GSNpcPath`, `GSNpcNavPrune` (prune against physics: nudge, ledge columns, loose joins, `required` bridges) |
-| `addons/dot_npc/view/` | `GSNpcGibs`: cuts a severed limb out of a skinned mesh, stump and blood (drawn only) |
-| `addons/dot_npc/runtime/dot_npc_limbs.gd` | `GSNpcLimbs`: shootable limbs on a body (regions from bones, health, `mask()` for `GSNpcNetSync.limb_specs()`, `speed_scale()`); tuned by `limbs:` in `cfg/addons/dot-npc/*.yml` |
-| `addons/dot_npc/runtime/dot_npc_hover.gd` | `GSNpcHover`: a jetpack as a state machine (lift, cruise, hover, land, fuel, disable) that returns the velocity to move at; holds no node and does no pathing |
-| `addons/dot_npc/core/dot_npc_gore.gd` | `GSNpcGore`: the process-wide gore dial (`level` 0 off, 1 stumps, 2 gibs and spray, 3 softer limbs and heavier spray; `max_gibs`). A game maps its cvars `gore_level` / `gore_max_gibs` / `gore_max_wounds` onto it; level 0 makes every limb call a no-op. **Replication design**: no gore level crosses the wire. The server's `level` decides whether a limb comes off, which reaches clients as the limb mask; `view_cap` is the player's own ceiling (their `gore` setting) and only trims what a machine draws (`drawn_level()`), so a client can never show more than the server allowed. `GSNpcGibs.add_wound` / `add_pool` draw pooled wound marks and floor blood, client-only, capped by `max_wounds` |
-| `addons/dot_npc/net/` | `GSNpcNetSync`: what replicates, as strings; never names GameSpice Net |
+| `addons/gs_npc/core/` | `GSNpcDef` (one kind, checkable without loading a scene), `GSNpcCatalogue` (JSON an operator edits), `GSNpcLimits` (a `GSConfig`), `GSNpcInstance` (one NPC in the world) |
+| `addons/gs_npc/runtime/` | `GSNpcSpawner` (the node a game adds: spawn, sense, think, hurt, reclaim), `GSNpcSenses`, `GSNpcBrain` (extended by path) |
+| `addons/gs_npc/nav/` | `GSNpcNavData` (points, areas, flags, cover, digest), `GSNpcNavBuilder`, `GSNpcNavFilter`, `GSNpcNavGraph` (A*, smoothing, partial paths; helpers `GSNpcNavLine` straight-walk and cut edges, `GSNpcNavSmooth` smoothing and leg memo, `GSNpcNavIndex` builder cell lookups), `GSNpcPath`, `GSNpcNavPrune` (prune against physics: nudge, ledge columns, loose joins, `required` bridges) |
+| `addons/gs_npc/view/` | `GSNpcGibs`: cuts a severed limb out of a skinned mesh, stump and blood (drawn only) |
+| `addons/gs_npc/runtime/gs_npc_limbs.gd` | `GSNpcLimbs`: shootable limbs on a body (regions from bones, health, `mask()` for `GSNpcNetSync.limb_specs()`, `speed_scale()`); tuned by `limbs:` in `cfg/addons/gs-npc/*.yml` |
+| `addons/gs_npc/runtime/gs_npc_hover.gd` | `GSNpcHover`: a jetpack as a state machine (lift, cruise, hover, land, fuel, disable) that returns the velocity to move at; holds no node and does no pathing |
+| `addons/gs_npc/core/gs_npc_gore.gd` | `GSNpcGore`: the process-wide gore dial (`level` 0 off, 1 stumps, 2 gibs and spray, 3 softer limbs and heavier spray; `max_gibs`). A game maps its cvars `gore_level` / `gore_max_gibs` / `gore_max_wounds` onto it; level 0 makes every limb call a no-op. **Replication design**: no gore level crosses the wire. The server's `level` decides whether a limb comes off, which reaches clients as the limb mask; `view_cap` is the player's own ceiling (their `gore` setting) and only trims what a machine draws (`drawn_level()`), so a client can never show more than the server allowed. `GSNpcGibs.add_wound` / `add_pool` draw pooled wound marks and floor blood, client-only, capped by `max_wounds` |
+| `addons/gs_npc/net/` | `GSNpcNetSync`: what replicates, as strings; never names GameSpice Net |
 | `fixtures/` | bodies (3D and 2D) and brains for the suite, written the pack-safe way |
 | `examples/npc_selftest.tscn` | the suite |
 
 ## Running and testing
 
-- Link `addons/dot_core` once ([development setup](../../docs/development-setup.md)), then the family's two steps ([family CLAUDE.md](../../CLAUDE.md#validating-anything)) and `timeout 120 godot --headless --path . res://examples/npc_selftest.tscn`. Exits non-zero on failure.
+- Link `addons/gs_core` once ([development setup](../../docs/development-setup.md)), then the family's two steps ([family CLAUDE.md](../../CLAUDE.md#validating-anything)) and `timeout 120 godot --headless --path . res://examples/npc_selftest.tscn`. Exits non-zero on failure.
 - The games that run NPCs (game-fatal-contact, game-airdrift, game-playlot, game-zombie-zone, game-hungario in 2D) are where most of this addon's bugs were found; run the ones a change touches.
 
 ## Rules that bite
@@ -90,4 +90,4 @@ Profiles: `GSNpcProfiles` (the `npc` kind) offers `profile_schemas()`, so dot-co
 | What an NPC's choices are seeded from | `GSNpcSpawner.seed_base` (the session) and `seed_source` (the game's own number, e.g. its entity id) |
 | Who a kill belongs to | the `by` on `damage()` / `report_death()` |
 
-Deliberately not here: decisions (dot-npc-ai), a population director, animation, attacks and damage types (dot-combat), flying and swimming, crowd avoidance, dynamic obstacles, sniper spots. [runtime](docs/runtime.md#deliberately-not-here), [navigation](docs/navigation.md#not-here)
+Deliberately not here: decisions (gs-npc-ai), a population director, animation, attacks and damage types (gs-combat), flying and swimming, crowd avoidance, dynamic obstacles, sniper spots. [runtime](docs/runtime.md#deliberately-not-here), [navigation](docs/navigation.md#not-here)

@@ -72,7 +72,7 @@ extends GSConfig
 
 
 func env_prefix() -> String:
-	return "DOT_NPC_"
+	return "GS_NPC_"
 
 
 func cli_prefix() -> String:

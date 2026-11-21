@@ -3,7 +3,7 @@ extends RefCounted
 
 ## What one NPC decides, one tick at a time; the class a game's NPC script extends. Server only.
 ## A [RefCounted] beside the node, so one scene serves many entries. A delivered brain extends this by path
-## (`extends "res://addons/dot_npc/runtime/dot_npc_brain.gd"`), never class_name, which a mounted pack cannot resolve.
+## (`extends "res://addons/gs_npc/runtime/gs_npc_brain.gd"`), never class_name, which a mounted pack cannot resolve.
 
 ## The NPC this brain drives. Set before [method _npc_ready].
 var npc: GSNpcInstance = null

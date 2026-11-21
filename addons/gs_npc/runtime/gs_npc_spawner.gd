@@ -147,7 +147,7 @@ func effective_think_workers() -> int:
 ## (see [GSNpcPacing]). Off, every brain is called every tick and counts for itself. Same thoughts either way.
 var pacing: bool = false
 
-## Hold the pacing natively (dot-sim's `GSSimThinkPacer`) when it is loaded; the script pacer otherwise.
+## Hold the pacing natively (gs-sim's `GSSimThinkPacer`) when it is loaded; the script pacer otherwise.
 var pacing_native: bool = true
 
 ## Check every native pacer answer bit for bit against the script pacer ([member pacing_mismatches]); for suites.

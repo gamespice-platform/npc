@@ -84,7 +84,7 @@ func _test_stable_seeds() -> void:
 	_check(seeds.size() == quiet.size(), "and no two NPCs share one",
 		"or a horde turns, waits and misses in step")
 	_check(above_one, "and every seed is above 1",
-		"dot-npc-ai reads 0 and 1 as \"still the preset's seed\"")
+		"gs-npc-ai reads 0 and 1 as \"still the preset's seed\"")
 	_check(_seeded_run(0, 99) != quiet, "a different seed_base is a different session")
 
 	# The game's own number (its entity id) wins over the spawn count, and zero falls back rather than
@@ -208,7 +208,7 @@ func _test_damage() -> void:
 	var by_combat := spawner.spawn(&"walker", Vector3.ZERO)
 	_check(
 		spawner.report_death(by_combat.instance_id, &"combat"),
-		"a game whose health is dot-combat's reports the death directly"
+		"a game whose health is gs-combat's reports the death directly"
 	)
 	_check(deaths.size() == 2, "and lands on the same signal")
 

@@ -49,7 +49,7 @@ var now: float = 0.0
 var sight_checks: int = 0
 var los_casts: int = 0
 
-## Runs [GSNpcPerception]'s whole pass (ranking and [method decide]) in dot-sim's native
+## Runs [GSNpcPerception]'s whole pass (ranking and [method decide]) in gs-sim's native
 ## `GSSimSenses` when that library is loaded: the same targets, timestamps, rays and counters, to
 ## the bit. Off, or no library (the web), keeps this script. A subclass that overrides [method decide]
 ## or [method _perceives_at] always keeps the script.

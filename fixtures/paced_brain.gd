@@ -1,4 +1,4 @@
-extends "res://addons/dot_npc/runtime/dot_npc_brain.gd"
+extends "res://addons/gs_npc/runtime/gs_npc_brain.gd"
 
 ## A brain for the self-test that thinks every few ticks the way a far-off zombie does, counting its own ticks
 ## (or letting the spawner count them when pacing is on), and on some thoughts staggers, possesses, frees, kills or

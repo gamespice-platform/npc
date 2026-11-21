@@ -517,7 +517,7 @@ func _run_parallel(work: Callable, base: float, weight: float, stage_name: Strin
 	_chunk_stage = stage_name
 	_chunk_done = 0
 	_chunk_total = total
-	var group := WorkerThreadPool.add_group_task(_run_chunk, count, count, true, "dot_npc nav " + stage_name)
+	var group := WorkerThreadPool.add_group_task(_run_chunk, count, count, true, "gs_npc nav " + stage_name)
 	WorkerThreadPool.wait_for_group_task_completion(group)
 
 

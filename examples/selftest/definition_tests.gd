@@ -31,7 +31,7 @@ func _test_definitions() -> void:
 	_check(
 		float(walker.meta["speed"]) == 4.0,
 		"and its meta is copied out, not handed out",
-		"a Dictionary is a reference; this is the aliasing bug dot-timer had five of"
+		"a Dictionary is a reference; this is the aliasing bug gs-timer had five of"
 	)
 	_done()
 
@@ -93,11 +93,11 @@ func _test_profiles() -> void:
 	_section("profiles")
 	_rm(PROFILE_BASE)
 	GSLog.set_level(GSLog.Level.FATAL)
-	_pw("addons/dot-npc/npc/walker.yml", "name: Walker\nscene: %s\nbrain: %s\ncategory: zombie\nhealth: 100\nhearing: 10\nlos: false\nmeta:\n  speed: 4.0\nextra:\n  groan:\n    pitch: 0.8\nmenu:\n  sort: 2\n  icon: res://walker.png\n" % [BODY, BRAIN])
-	_pw("addons/dot-npc/npc/brute.yml", "extends: walker\ncost: 8\nhealth: 400\nweight: heavy\nmenu:\n  sort: 1\n  category: zombie/big\n")
-	_pw("addons/dot-npc/npc/ghost.yml", "extends: walker\nmenu:\n  hidden: true\n")
+	_pw("addons/gs-npc/npc/walker.yml", "name: Walker\nscene: %s\nbrain: %s\ncategory: zombie\nhealth: 100\nhearing: 10\nlos: false\nmeta:\n  speed: 4.0\nextra:\n  groan:\n    pitch: 0.8\nmenu:\n  sort: 2\n  icon: res://walker.png\n" % [BODY, BRAIN])
+	_pw("addons/gs-npc/npc/brute.yml", "extends: walker\ncost: 8\nhealth: 400\nweight: heavy\nmenu:\n  sort: 1\n  category: zombie/big\n")
+	_pw("addons/gs-npc/npc/ghost.yml", "extends: walker\nmenu:\n  hidden: true\n")
 	_pw("game/mygame/npc/walker.yml", "health: 150\nextra:\n  groan:\n    volume: 3\n")
-	_pw("addons/dot-npc/npc/broken.yml", "scene: [unclosed\n  : x: :\n")
+	_pw("addons/gs-npc/npc/broken.yml", "scene: [unclosed\n  : x: :\n")
 	var roots := PackedStringArray([PROFILE_BASE])
 
 	var addon_only := GSNpcProfiles.make_set("", roots)

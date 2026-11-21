@@ -7,17 +7,17 @@ extends RefCounted
 
 ## The default cap; the live one is [member GSNpcGore.max_gibs].
 const MAX_GIBS := GSNpcGore.DEFAULT_MAX_GIBS
-const GROUP := &"dot_npc_gibs"
+const GROUP := &"gs_npc_gibs"
 
 static var _mesh_cache: Dictionary = {}
 ## A whole mesh's id and the bone collapsed -> the mesh that cut leaves, or null when it drops nothing.
 static var _collapse_cache: Dictionary = {}
 const COLLAPSE_CACHE_MAX := 256
-const PRISTINE := &"dot_npc_pristine_mesh"
-const COLLAPSED := &"dot_npc_collapsed_bones"
+const PRISTINE := &"gs_npc_pristine_mesh"
+const COLLAPSED := &"gs_npc_collapsed_bones"
 const STUMP_PREFIX := "Stump_"
 const WOUND_PREFIX := "Wound_"
-const WOUND_GROUP := &"dot_npc_wounds"
+const WOUND_GROUP := &"gs_npc_wounds"
 const POOL_SECONDS := 25.0
 
 static var _blob_mat: StandardMaterial3D = null
@@ -326,7 +326,7 @@ static func spawn_gib(sk: Skeleton3D, model: Node, key: String, root: int, limb:
 		spray.free()
 	var life := float(d.get("gib_seconds", 14.0))
 	var until := Time.get_ticks_msec() + int(life * 1000.0)
-	gib.set_meta(&"dot_npc_gib_until", until)
+	gib.set_meta(&"gs_npc_gib_until", until)
 	gib.get_tree().create_timer(life).timeout.connect(_free_weak.bind(weakref(gib), until))
 	return gib
 
@@ -448,7 +448,7 @@ static func restore(sk: Skeleton3D, model: Node = null) -> void:
 static func _free_weak(ref: WeakRef, until := -1) -> void:
 	var n := ref.get_ref() as Node
 	# A recycled gib carries a later expiry; the timer of its first life must not cut the second short.
-	if n != null and (until < 0 or int(n.get_meta(&"dot_npc_gib_until", until)) == until):
+	if n != null and (until < 0 or int(n.get_meta(&"gs_npc_gib_until", until)) == until):
 		n.queue_free()
 
 

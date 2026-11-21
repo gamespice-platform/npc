@@ -2,7 +2,7 @@ class_name GSNpcPacer
 extends RefCounted
 
 ## The spawner's think pacing in script: which NPCs think this tick and with how much time.
-## The twin of dot-sim's native `GSSimThinkPacer` (same calls, same answers to the bit); [GSNpcPacing] picks
+## The twin of gs-sim's native `GSSimThinkPacer` (same calls, same answers to the bit); [GSNpcPacing] picks
 ## one, or runs both and compares them.
 ##
 ## A paced brain ([method GSNpcBrain.paces]) thinks once every `every` ticks and is handed the seconds it owes

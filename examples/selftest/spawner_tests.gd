@@ -322,7 +322,7 @@ func _test_pacing() -> void:
 	else:
 		var flags := [false]
 		var fallback := _pace_run(true, true, 0, [], flags)
-		_check(fallback == off, "native asked for without dot-sim: script pacing, the same log", _pace_diff(fallback, off))
+		_check(fallback == off, "native asked for without gs-sim: script pacing, the same log", _pace_diff(fallback, off))
 		_check(not flags[0], "and the spawner says it is not native")
 
 	_done()

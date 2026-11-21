@@ -1,4 +1,4 @@
-extends "res://addons/dot_npc/runtime/dot_npc_brain.gd"
+extends "res://addons/gs_npc/runtime/gs_npc_brain.gd"
 
 ## A brain for the self-test that makes its choices the moment it is bound, from its seed.
 ## Like a real brain with [member GSNpcInstance.seed]: drawn in [method _npc_ready], the earliest a brain can choose.

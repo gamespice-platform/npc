@@ -9,7 +9,7 @@ const CHANNEL := "npc.limbs"
 ## Bits of the replicated mask: the limbs of one definition, in config order.
 const MAX_LIMBS := 8
 ## The addon whose cfg directory holds shared limb definitions.
-const CONFIG_ADDON := "dot-npc"
+const CONFIG_ADDON := "gs-npc"
 
 ## A limb came off. `info`: `point` (world), `impulse`, `limb` def.
 signal severed(limb: StringName, info: Dictionary)
@@ -165,7 +165,7 @@ func is_lethal() -> bool:
 	return false
 
 
-## The limb definitions of [param def_id] from `cfg/addons/dot-npc/*.yml` (`limbs: {<def_id>: {<limb>: {...}}}`).
+## The limb definitions of [param def_id] from `cfg/addons/gs-npc/*.yml` (`limbs: {<def_id>: {<limb>: {...}}}`).
 ## Empty when none are configured, so a definition without limbs is simply not shootable apart.
 static func defs_from_config(def_id: StringName) -> Dictionary:
 	var res := GSAddonConfig.load_dir(CONFIG_ADDON)

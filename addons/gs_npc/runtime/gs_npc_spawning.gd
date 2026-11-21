@@ -306,7 +306,7 @@ func attach_brain(npc: GSNpcInstance) -> GSResult:
 	if not (made is GSNpcBrain):
 		return GSResult.fail(
 			GSError.CODE_INVALID,
-			"A brain must extend dot_npc_brain.gd.",
+			"A brain must extend gs_npc_brain.gd.",
 			npc.def.brain_script_path
 		)
 

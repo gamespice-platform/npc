@@ -10,7 +10,7 @@ An NPC's position comes from a pathfinder, a steering pass and, for a rigid-body
 
 ## Install
 
-Copy `addons/dot_npc/` and dot-core's `addons/dot_core/` into your project and enable dot-npc under **Project > Project Settings > Plugins**.
+Copy `addons/gs_npc/` and gs-core's `addons/gs_core/` into your project and enable gs-npc under **Project > Project Settings > Plugins**.
 
 ## Quick start
 
@@ -48,7 +48,7 @@ catalogue.add(zombie)
 A brain says what it does each tick:
 
 ```gdscript
-extends "res://addons/dot_npc/runtime/dot_npc_brain.gd"
+extends "res://addons/gs_npc/runtime/gs_npc_brain.gd"
 
 func _npc_think(delta: float) -> void:
     if not npc.has_target():
@@ -58,7 +58,7 @@ func _npc_think(delta: float) -> void:
 
 ## Population limits
 
-`GSNpcLimits` is a `GSConfig`, so an operator can change it without a rebuild: defaults, JSON file, `DOT_NPC_*` environment, `--npc-*` command line.
+`GSNpcLimits` is a `GSConfig`, so an operator can change it without a rebuild: defaults, JSON file, `GS_NPC_*` environment, `--npc-*` command line.
 
 | Setting | Default | What it does |
 | --- | --- | --- |
