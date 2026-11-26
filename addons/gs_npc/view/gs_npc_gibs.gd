@@ -196,71 +196,11 @@ static func limb_mesh(sk: Skeleton3D, model: Node, root: int, key: String) -> Ar
 			continue
 		for s in src.get_surface_count():
 			var arrays := src.surface_get_arrays(s)
-			var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-			var bones: Variant = arrays[Mesh.ARRAY_BONES]
-			var weights: Variant = arrays[Mesh.ARRAY_WEIGHTS]
-			var idx: Variant = arrays[Mesh.ARRAY_INDEX]
-			if verts.is_empty() or not (bones is PackedInt32Array) or not (weights is PackedFloat32Array):
-				continue
-			var per := (bones as PackedInt32Array).size() / verts.size()
-			var skin: Skin = mi.skin
-			var inside := PackedByteArray()
-			inside.resize(verts.size())
-			for v in verts.size():
-				var w := 0.0
-				for k in per:
-					var b: int = (bones as PackedInt32Array)[v * per + k]
-					if skin != null and b < skin.get_bind_count():
-						var named := skin.get_bind_bone(b)
-						b = named if named >= 0 else sk.find_bone(skin.get_bind_name(b))
-					if in_limb.has(b):
-						w += (weights as PackedFloat32Array)[v * per + k]
-				inside[v] = 1 if w >= 0.5 else 0
-			var tris: PackedInt32Array = idx if idx is PackedInt32Array else PackedInt32Array(range(verts.size()))
-			var remap := {}
-			var out := {}
-			for key_name in [Mesh.ARRAY_VERTEX, Mesh.ARRAY_NORMAL, Mesh.ARRAY_TEX_UV]:
-				out[key_name] = []
 			var out_idx := PackedInt32Array()
-			var normals: Variant = arrays[Mesh.ARRAY_NORMAL]
-			var uvs: Variant = arrays[Mesh.ARRAY_TEX_UV]
-			for t in range(0, tris.size() - 2, 3):
-				var ins := int(inside[tris[t]]) + int(inside[tris[t + 1]]) + int(inside[tris[t + 2]])
-				if ins == 0:
-					continue
-				if ins == 3:
-					for c in 3:
-						out_idx.append(_emit(out, remap, tris[t + c], verts, normals, uvs, centre))
-					continue
-				# A triangle across the limb's edge is cut at the plane through the joint, so the gib ends flat under its cut face, not in a ragged hole.
-				var poly := []
-				for c in 3:
-					var va := tris[t + c]
-					var vb := tris[t + (c + 1) % 3]
-					var da := (verts[va] - centre).dot(axis)
-					var db := (verts[vb] - centre).dot(axis)
-					if da >= 0.0:
-						poly.append(_corner(va, verts, normals, uvs, centre))
-					if (da >= 0.0) != (db >= 0.0):
-						var f := da / (da - db)
-						var ca := _corner(va, verts, normals, uvs, centre)
-						var cb := _corner(vb, verts, normals, uvs, centre)
-						var mixed := [(ca[0] as Vector3).lerp(cb[0], f), (ca[1] as Vector3).lerp(cb[1], f).normalized(), (ca[2] as Vector2).lerp(cb[2], f)]
-						poly.append(mixed)
-				for k in range(1, poly.size() - 1):
-					for corner in [poly[0], poly[k], poly[k + 1]]:
-						out_idx.append(_emit_new(out, corner))
+			var out := _cut_surface(arrays, _inside_flags(sk, mi.skin, arrays, in_limb), centre, axis, out_idx)
 			if out_idx.is_empty():
 				continue
-			var a: Array = []
-			a.resize(Mesh.ARRAY_MAX)
-			a[Mesh.ARRAY_VERTEX] = PackedVector3Array(out[Mesh.ARRAY_VERTEX])
-			if not (out[Mesh.ARRAY_NORMAL] as Array).is_empty():
-				a[Mesh.ARRAY_NORMAL] = PackedVector3Array(out[Mesh.ARRAY_NORMAL])
-			if not (out[Mesh.ARRAY_TEX_UV] as Array).is_empty():
-				a[Mesh.ARRAY_TEX_UV] = PackedVector2Array(out[Mesh.ARRAY_TEX_UV])
-			a[Mesh.ARRAY_INDEX] = out_idx
-			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a)
+			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, _surface_arrays(out, out_idx))
 			var mat := mi.get_surface_override_material(s)
 			if mat == null:
 				mat = src.surface_get_material(s)
@@ -269,6 +209,88 @@ static func limb_mesh(sk: Skeleton3D, model: Node, root: int, key: String) -> Ar
 	var result: ArrayMesh = mesh if mesh.get_surface_count() > 0 else null
 	_mesh_cache[key] = result
 	return result
+
+
+## One byte per vertex: 1 when at least half its skin weight sits on bones of the limb, empty when the surface is not skinned.
+static func _inside_flags(sk: Skeleton3D, skin: Skin, arrays: Array, in_limb: Dictionary) -> PackedByteArray:
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var bones: Variant = arrays[Mesh.ARRAY_BONES]
+	var weights: Variant = arrays[Mesh.ARRAY_WEIGHTS]
+	var inside := PackedByteArray()
+	if verts.is_empty() or not (bones is PackedInt32Array) or not (weights is PackedFloat32Array):
+		return inside
+	inside.resize(verts.size())
+	var per := (bones as PackedInt32Array).size() / verts.size()
+	for v in verts.size():
+		var w := 0.0
+		for k in per:
+			var b: int = (bones as PackedInt32Array)[v * per + k]
+			if skin != null and b < skin.get_bind_count():
+				var named := skin.get_bind_bone(b)
+				b = named if named >= 0 else sk.find_bone(skin.get_bind_name(b))
+			if in_limb.has(b):
+				w += (weights as PackedFloat32Array)[v * per + k]
+		inside[v] = 1 if w >= 0.5 else 0
+	return inside
+
+
+## The limb's triangles of one surface: whole ones copied, ones across its edge cut at the joint plane. Fills out_idx; returns the vertex streams.
+static func _cut_surface(arrays: Array, inside: PackedByteArray, centre: Vector3, axis: Vector3, out_idx: PackedInt32Array) -> Dictionary:
+	var out := {}
+	for key_name in [Mesh.ARRAY_VERTEX, Mesh.ARRAY_NORMAL, Mesh.ARRAY_TEX_UV]:
+		out[key_name] = []
+	if inside.is_empty():
+		return out
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var idx: Variant = arrays[Mesh.ARRAY_INDEX]
+	var tris: PackedInt32Array = idx if idx is PackedInt32Array else PackedInt32Array(range(verts.size()))
+	var normals: Variant = arrays[Mesh.ARRAY_NORMAL]
+	var uvs: Variant = arrays[Mesh.ARRAY_TEX_UV]
+	var remap := {}
+	for t in range(0, tris.size() - 2, 3):
+		var ins := int(inside[tris[t]]) + int(inside[tris[t + 1]]) + int(inside[tris[t + 2]])
+		if ins == 0:
+			continue
+		if ins == 3:
+			for c in 3:
+				out_idx.append(_emit(out, remap, tris[t + c], verts, normals, uvs, centre))
+			continue
+		# A triangle across the limb's edge is cut at the plane through the joint, so the gib ends flat under its cut face, not in a ragged hole.
+		var poly := _clip_corners(tris, t, verts, normals, uvs, centre, axis)
+		for k in range(1, poly.size() - 1):
+			for corner in [poly[0], poly[k], poly[k + 1]]:
+				out_idx.append(_emit_new(out, corner))
+	return out
+
+
+## The corners of one triangle on the limb side of the plane through the joint, with new ones where an edge crosses it.
+static func _clip_corners(tris: PackedInt32Array, t: int, verts: PackedVector3Array, normals: Variant, uvs: Variant, centre: Vector3, axis: Vector3) -> Array:
+	var poly := []
+	for c in 3:
+		var va := tris[t + c]
+		var vb := tris[t + (c + 1) % 3]
+		var da := (verts[va] - centre).dot(axis)
+		var db := (verts[vb] - centre).dot(axis)
+		if da >= 0.0:
+			poly.append(_corner(va, verts, normals, uvs, centre))
+		if (da >= 0.0) != (db >= 0.0):
+			var f := da / (da - db)
+			var ca := _corner(va, verts, normals, uvs, centre)
+			var cb := _corner(vb, verts, normals, uvs, centre)
+			poly.append([(ca[0] as Vector3).lerp(cb[0], f), (ca[1] as Vector3).lerp(cb[1], f).normalized(), (ca[2] as Vector2).lerp(cb[2], f)])
+	return poly
+
+
+static func _surface_arrays(out: Dictionary, out_idx: PackedInt32Array) -> Array:
+	var a: Array = []
+	a.resize(Mesh.ARRAY_MAX)
+	a[Mesh.ARRAY_VERTEX] = PackedVector3Array(out[Mesh.ARRAY_VERTEX])
+	if not (out[Mesh.ARRAY_NORMAL] as Array).is_empty():
+		a[Mesh.ARRAY_NORMAL] = PackedVector3Array(out[Mesh.ARRAY_NORMAL])
+	if not (out[Mesh.ARRAY_TEX_UV] as Array).is_empty():
+		a[Mesh.ARRAY_TEX_UV] = PackedVector2Array(out[Mesh.ARRAY_TEX_UV])
+	a[Mesh.ARRAY_INDEX] = out_idx
+	return a
 
 
 static func world_of(view: Node) -> Node:

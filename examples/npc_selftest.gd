@@ -668,7 +668,21 @@ func _test_path_workers() -> void:
 
 	_check_copies_and_cut_index(graph, builder)
 
-	# The spawner: off finds inline as it always did; on queues and answers at the end of the think.
+	var spawners := _check_spawner_paths(data, queries)
+	var threaded := GSParallel.resolve_workers(4) > 0
+
+	_check_deferred_paths(data, queries, threaded)
+
+	_check_web_inline(spawners)
+	_check_limb_cut()
+
+	for s in spawners:
+		s.queue_free()
+	_done()
+
+
+## The spawner: off finds inline as it always did; on queues and answers at the end of the think.
+func _check_spawner_paths(data: GSNpcNavData, queries: Array) -> Array[GSNpcSpawner]:
 	var limits := _limits()
 	limits.spawn_snap_radius = 3.0
 	var spawners: Array[GSNpcSpawner] = [_spawner(limits), _spawner(limits)]
@@ -706,16 +720,7 @@ func _test_path_workers() -> void:
 
 	_check(agree == 12, "and after answer_paths every path equals the inline one", "%d of 12" % agree)
 
-	_check_deferred_paths(data, queries, threaded)
-
-	_check_web_inline(spawners)
-	_check_limb_cut()
-
-	for s in spawners:
-		s.queue_free()
-	_done()
-
-
+	return spawners
 
 
 ## A triangle across a limb's edge is cut flat at the plane through the joint, not dropped.
