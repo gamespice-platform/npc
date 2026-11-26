@@ -43,12 +43,12 @@ var _copies: Dictionary = {}
 ## Point index -> [expires_at, factor]: places where a walker stalled, costed up for everybody until they expire.
 var _bad: Dictionary = {}
 
-# GSNpcNavLine and GSNpcNavSmooth by uid, not by name: both name this class back, and a script
+# GSNpcNavLine and GSNpcNavSmooth by path, not by name: both name this class back, and a script
 # loop stays in memory for good (Godot 4.7). Both load in static initialisers, which run when this
 # script loads, on the main thread: a script first loaded on a WorkerThreadPool task (the first
 # graph copy made by a nav job) left one object behind at exit.
-static var _line_script: Script = load("uid://b67a3ugh5u6dt")
-static var _smooth_script: Script = load("uid://dde41xussakjv")
+static var _line_script: Script = load("res://addons/gs_npc/nav/gs_npc_nav_line.gd")
+static var _smooth_script: Script = load("res://addons/gs_npc/nav/gs_npc_nav_smooth.gd")
 
 ## Caches for [method can_walk_straight] and the cut edges.
 var _line: RefCounted = _line_script.new()

@@ -158,12 +158,12 @@ var pacing_checked: int = 0
 var pacing_mismatches: int = 0
 
 
-# The helpers by uid, not by name: each names this class back, and a script loop stays in memory
+# The helpers by path, not by name: each names this class back, and a script loop stays in memory
 # for good (Godot 4.7). Their classes: GSNpcPathing, GSNpcPacing, GSNpcPerception, GSNpcSpawning.
-var _pathing: RefCounted = load("uid://b0h67pyeqben").new(self)
-var _pacing: RefCounted = load("uid://dvdkgpmjthhws").new(self)
-var _perception: RefCounted = load("uid://cl46tpccxr78f").new(self)
-var _spawning: RefCounted = load("uid://bsyirk2646i14").new(self)
+var _pathing: RefCounted = load("res://addons/gs_npc/runtime/gs_npc_pathing.gd").new(self)
+var _pacing: RefCounted = load("res://addons/gs_npc/runtime/gs_npc_pacing.gd").new(self)
+var _perception: RefCounted = load("res://addons/gs_npc/runtime/gs_npc_perception.gd").new(self)
+var _spawning: RefCounted = load("res://addons/gs_npc/runtime/gs_npc_spawning.gd").new(self)
 
 ## Instance id -> GSNpcInstance.
 var _npcs: Dictionary = {}
