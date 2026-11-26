@@ -209,7 +209,7 @@ func _test_gore() -> void:
 	_check(GSNpcGore.dismember_enabled() and not GSNpcGore.gibs_enabled() and not GSNpcGore.spray_enabled(), "level 1 is stumps only")
 	GSNpcGore.level = 2
 	GSNpcGore.max_gibs = 0
-	_check(not GSNpcGore.gibs_enabled() and GSNpcGore.spray_enabled(), "a gib cap of 0 throws no limb but keeps the spray")
+	_check(GSNpcGore.gibs_enabled() and GSNpcGore.spray_enabled(), "a gib cap of 0 is unlimited: limbs are still thrown")
 	GSNpcGore.reset()
 	var defs := {"armL": {"bones": ["armL"], "radius": 0.2, "health": 80.0}}
 	var make := func() -> GSNpcLimbs:
@@ -247,8 +247,10 @@ func _test_gore() -> void:
 	_check(hidden.mask() == 0, "level 0: sever() takes nothing either")
 	GSNpcGore.reset()
 	GSNpcGore.max_wounds = 0
+	_check(GSNpcGore.wounds_enabled(), "a wound cap of 0 is unlimited: marks and pools are still drawn")
+	GSNpcGore.level = 1
 	_check(not GSNpcGore.wounds_enabled() and GSNpcGibs.add_wound(null, Vector3.ZERO) == null and GSNpcGibs.add_pool(null, Vector3.ZERO) == null,
-		"a wound cap of 0 draws no marks or pools")
+		"gore level 1 draws no marks or pools")
 	GSNpcGore.reset()
 	off.queue_free()
 	soft.queue_free()

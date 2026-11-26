@@ -232,6 +232,7 @@ static func flesh_material() -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = Color(0.42, 0.03, 0.05)
 	m.roughness = 0.22
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	m.emission_enabled = true
 	m.emission = Color(0.25, 0.0, 0.02)
 	return m
@@ -244,26 +245,41 @@ static func bone_material() -> StandardMaterial3D:
 	return m
 
 
-static func blood(burst: bool, dir: Vector3) -> CPUParticles3D:
+static func blood(burst: bool, dir: Vector3, style := GSNpcGore.STYLE_GENERIC) -> CPUParticles3D:
+	var sp := GSNpcGore.style_params(style)
 	var p := CPUParticles3D.new()
-	p.amount = int((40 if burst else 10) * GSNpcGore.spray_scale())
+	p.amount = maxi(int((40 if burst else 10) * GSNpcGore.spray_scale() * (float(sp["amount"]) if burst else 1.0)), 4)
 	p.lifetime = 0.9 if burst else 0.8
 	p.one_shot = burst
 	p.explosiveness = 0.95 if burst else 0.0
 	p.local_coords = false
-	p.direction = dir.normalized() + Vector3.UP * 0.6 if dir.length() > 0.01 else Vector3.UP
-	p.spread = 55.0 if burst else 25.0
-	p.initial_velocity_min = 2.0 if burst else 0.2
-	p.initial_velocity_max = 6.0 if burst else 1.0
+	# Along the blow with a little lift: a jet goes the way the shot went, not straight up.
+	p.direction = (dir.normalized() + Vector3.UP * 0.3).normalized() if dir.length() > 0.01 else Vector3.UP
+	p.spread = float(sp["spread"]) if burst else 25.0
+	var v := float(sp["speed"])
+	p.initial_velocity_min = (2.0 if burst else 0.2) * v
+	p.initial_velocity_max = (6.0 if burst else 1.0) * v
 	p.gravity = Vector3(0.0, -9.8, 0.0)
-	var drop := SphereMesh.new()
-	drop.radius = 0.024
-	drop.height = 0.048
-	drop.radial_segments = 6
-	drop.rings = 3
-	drop.material = flesh_material()
-	p.mesh = drop
+	# Streaks, not beads: thin, long, aligned to their travel and varied in size.
+	p.particle_flag_align_y = true
+	p.scale_amount_min = 0.4
+	p.scale_amount_max = 1.5
+	p.mesh = _streak()
 	return p
+
+
+static var _streak_mesh: CapsuleMesh
+
+
+static func _streak() -> CapsuleMesh:
+	if _streak_mesh == null:
+		_streak_mesh = CapsuleMesh.new()
+		_streak_mesh.radius = 0.011
+		_streak_mesh.height = 0.085
+		_streak_mesh.radial_segments = 5
+		_streak_mesh.rings = 1
+		_streak_mesh.material = flesh_material()
+	return _streak_mesh
 
 
 ## Spawns the limb as a body in the world, at [param joint_world], and returns it (null headless or with
@@ -279,7 +295,7 @@ static func spawn_gib(sk: Skeleton3D, model: Node, key: String, root: int, limb:
 	# A gib already freed this frame is still in the group: never count or reuse it.
 	var live := world.get_tree().get_nodes_in_group(GROUP).filter(func(n: Node) -> bool: return not n.is_queued_for_deletion())
 	var gib: RigidBody3D = null
-	while live.size() >= GSNpcGore.max_gibs:
+	while GSNpcGore.max_gibs > 0 and live.size() >= GSNpcGore.max_gibs:
 		var oldest := live[0] as RigidBody3D
 		live.remove_at(0)
 		if gib == null and oldest != null:
@@ -316,9 +332,14 @@ static func spawn_gib(sk: Skeleton3D, model: Node, key: String, root: int, limb:
 	var out := sk.get_bone_global_rest(root).origin - sk.get_bone_global_rest(par).origin if par >= 0 else Vector3.UP
 	var cap := cut_face(stump_radius(d), -out.normalized() if out.length() > 0.001 else Vector3.DOWN)
 	gib.add_child(cap)
-	gib.linear_velocity = impulse + Vector3(randf_range(-1.0, 1.0), 2.5, randf_range(-1.0, 1.0))
-	gib.angular_velocity = Vector3(randf_range(-4.0, 4.0), randf_range(-4.0, 4.0), randf_range(-4.0, 4.0))
-	var spray := blood(true, impulse)
+	var style := GSNpcGore.hit_style
+	var sp := GSNpcGore.style_params(style)
+	# The throw follows the blow: its direction scaled by the weapon, a hop up, and scatter that grows with spread.
+	var scatter := float(sp["spread"]) / 55.0
+	gib.linear_velocity = impulse * float(sp["throw"]) + Vector3(randf_range(-1.0, 1.0) * scatter, float(sp["lift"]) * randf_range(0.8, 1.2), randf_range(-1.0, 1.0) * scatter)
+	var spin := float(sp["spin"])
+	gib.angular_velocity = Vector3(randf_range(-spin, spin), randf_range(-spin, spin), randf_range(-spin, spin))
+	var spray := blood(true, impulse, style)
 	if GSNpcGore.spray_enabled():
 		gib.add_child(spray)
 		spray.emitting = true
@@ -364,36 +385,104 @@ static func stump_radius(d: Dictionary) -> float:
 	return clampf(float(d.get("radius", 0.3)) * 0.55, 0.07, 0.2)
 
 
-## The flat cut itself at the origin, facing [param dir]: flesh collar behind it, a ring of muscle, a bone disc
-## and a dark marrow dot.
+## The cut itself at the origin, facing [param dir]: a ragged, closed collar of torn flesh behind a torn face, a
+## ring of pale muscle, an uneven bone disc with a dark marrow pit. Meshes are shared by variant and scaled.
 static func cut_face(r: float, dir: Vector3) -> Node3D:
 	var cut := Node3D.new()
-	cut.transform = Transform3D(Basis(Quaternion(Vector3.UP, dir)), Vector3.ZERO)
-	cut.add_child(_disc(r, r * 1.6, -r * 0.8, flesh_material()))
-	cut.add_child(_disc(r * 0.88, r * 0.04, r * 0.02, muscle_material()))
-	cut.add_child(_disc(r * 0.34, r * 0.06, r * 0.05, bone_material()))
-	cut.add_child(_disc(r * 0.14, r * 0.07, r * 0.055, marrow_material()))
+	var variant := randi() % CAP_VARIANTS
+	cut.transform = Transform3D(Basis(Quaternion(Vector3.UP, dir)) * Basis(Vector3.UP, randf() * TAU) * Basis.from_scale(Vector3.ONE * r), Vector3.ZERO)
+	cut.add_child(_cap_part(variant, "collar", flesh_material(), Vector3.ZERO))
+	cut.add_child(_cap_part(variant, "face", flesh_material(), Vector3.ZERO))
+	cut.add_child(_cap_part(variant, "muscle", muscle_material(), Vector3(0.0, 0.02, 0.0)))
+	cut.add_child(_cap_part(variant, "bone", bone_material(), Vector3(0.0, 0.06, 0.0)))
+	cut.add_child(_cap_part(variant, "marrow", marrow_material(), Vector3(0.0, 0.085, 0.0)))
 	return cut
 
 
-static func _disc(radius: float, height: float, y: float, mat: Material) -> MeshInstance3D:
-	var c := CylinderMesh.new()
-	c.top_radius = radius
-	c.bottom_radius = radius * 1.04
-	c.height = height
-	c.radial_segments = 16
-	c.rings = 1
-	c.material = mat
+const CAP_VARIANTS := 4
+const CAP_SEGMENTS := 16
+static var _cap_meshes: Dictionary = {}
+
+
+static func _cap_part(variant: int, part: String, mat: Material, at: Vector3) -> MeshInstance3D:
+	var key := "%d/%s" % [variant, part]
+	if not _cap_meshes.has(key):
+		_cap_meshes[key] = _build_cap(variant, part)
 	var mi := MeshInstance3D.new()
-	mi.mesh = c
-	mi.position = Vector3(0.0, y, 0.0)
+	mi.mesh = _cap_meshes[key]
+	mi.material_override = mat
+	mi.position = at
 	return mi
+
+
+## One part of a unit-radius cut: a torn outline (radius jittered per segment) filled as a fan, so there is no
+## hole and no perfect circle. The collar is the wall dropping from the face, closed at the bottom.
+static func _build_cap(variant: int, part: String) -> ArrayMesh:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7919 * (variant + 1)
+	var scale_of := {"collar": 1.0, "face": 1.0, "muscle": 0.8, "bone": 0.32, "marrow": 0.13}
+	var jitter := {"collar": 0.16, "face": 0.16, "muscle": 0.12, "bone": 0.1, "marrow": 0.0}
+	var base: float = scale_of[part]
+	var j: float = jitter[part]
+	var ring := PackedVector3Array()
+	var outer := PackedFloat32Array()
+	# The outline of the face is shared by all parts of a variant so the layers sit inside each other.
+	var rng_face := RandomNumberGenerator.new()
+	rng_face.seed = 104729 * (variant + 1)
+	for i in CAP_SEGMENTS:
+		outer.append(1.0 + rng_face.randf_range(-0.16, 0.16))
+	for i in CAP_SEGMENTS:
+		var ang := TAU * float(i) / CAP_SEGMENTS
+		var rad := base * (outer[i] if part != "bone" and part != "marrow" else 1.0 + rng.randf_range(-j, j))
+		if part == "muscle":
+			rad = base * outer[i] * (1.0 + rng.randf_range(-j, j) * 0.5)
+		ring.append(Vector3(cos(ang) * rad, 0.0, sin(ang) * rad))
+	var verts := PackedVector3Array()
+	var norms := PackedVector3Array()
+	var idx := PackedInt32Array()
+	if part == "collar":
+		var depth := 1.5
+		for i in CAP_SEGMENTS:
+			var p := ring[i]
+			verts.append(p)
+			norms.append(Vector3(p.x, 0.0, p.z).normalized())
+			verts.append(Vector3(p.x * 0.85, -depth, p.z * 0.85))
+			norms.append(Vector3(p.x, 0.0, p.z).normalized())
+		for i in CAP_SEGMENTS:
+			var n := (i + 1) % CAP_SEGMENTS
+			idx.append_array([i * 2, n * 2, i * 2 + 1, n * 2, n * 2 + 1, i * 2 + 1])
+		# Closed at the far end so a thrown gib is solid from any side.
+		var c := verts.size()
+		verts.append(Vector3(0.0, -depth, 0.0))
+		norms.append(Vector3.DOWN)
+		for i in CAP_SEGMENTS:
+			idx.append_array([c, i * 2 + 1, ((i + 1) % CAP_SEGMENTS) * 2 + 1])
+	else:
+		var wob := 0.04 if part == "face" else 0.0
+		verts.append(Vector3(0.0, wob, 0.0))
+		norms.append(Vector3.UP)
+		for i in CAP_SEGMENTS:
+			var p := ring[i]
+			p.y = rng.randf_range(-wob, wob) if part == "face" else 0.0
+			verts.append(p)
+			norms.append(Vector3.UP)
+		for i in CAP_SEGMENTS:
+			idx.append_array([0, 1 + (i + 1) % CAP_SEGMENTS, 1 + i])
+	var arrays: Array = []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = norms
+	arrays[Mesh.ARRAY_INDEX] = idx
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return mesh
 
 
 static func muscle_material() -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = Color(0.72, 0.2, 0.2)
 	m.roughness = 0.35
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	return m
 
 
@@ -460,6 +549,8 @@ static func _stop_weak(ref: WeakRef) -> void:
 
 ## Frees the oldest wound marks and pools until there is room for one more under [member GSNpcGore.max_wounds].
 static func _make_room(tree: SceneTree) -> void:
+	if GSNpcGore.max_wounds <= 0:
+		return
 	var live := tree.get_nodes_in_group(WOUND_GROUP)
 	while live.size() >= GSNpcGore.max_wounds and not live.is_empty():
 		var oldest := live[0] as Node
