@@ -5,7 +5,7 @@ extends "res://examples/selftest/path_worker_tests.gd"
 ## a graph that joins a walkway to the floor below, a reclaim that deletes what is chasing someone. Real nodes, real tree.
 
 
-const CHECKS := 243 + 23 + 15 + 6 + 3 + 4 + 4 + 3 + 13 + 4 + 2 + 11 + 3 + 3 + 3 + 2 + 3 + 2 + 3 + 2 + 11 + 4 + 2 + 2 + 8 + 5 + 8 + 2 + 4 + 1 + 1 + 5 + 6
+const CHECKS := 243 + 23 + 15 + 6 + 3 + 4 + 4 + 3 + 13 + 4 + 2 + 11 + 3 + 3 + 3 + 2 + 3 + 2 + 3 + 2 + 11 + 4 + 2 + 2 + 8 + 5 + 8 + 2 + 4 + 1 + 1 + 5 + 6 + 2
 
 ## Sections entered against sections that ran to their last line. A runtime error inside a section aborts that
 ## function and nothing says so; a section that bailed early after a failed guard counts as unfinished on purpose.
@@ -709,9 +709,49 @@ func _test_path_workers() -> void:
 	_check_deferred_paths(data, queries, threaded)
 
 	_check_web_inline(spawners)
+	_check_limb_cut()
 
 	for s in spawners:
 		s.queue_free()
 	_done()
 
 
+
+
+## A triangle across a limb's edge is cut flat at the plane through the joint, not dropped.
+func _check_limb_cut() -> void:
+	var sk := Skeleton3D.new()
+	sk.add_bone("a")
+	sk.add_bone("b")
+	sk.set_bone_parent(1, 0)
+	sk.set_bone_rest(1, Transform3D(Basis.IDENTITY, Vector3(0, 1, 0)))
+	sk.reset_bone_poses()
+	var skin := Skin.new()
+	skin.add_named_bind("a", Transform3D.IDENTITY)
+	skin.add_named_bind("b", Transform3D(Basis.IDENTITY, Vector3(0, -1, 0)))
+	var arrays: Array = []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3(0, 1.5, 0), Vector3(0.2, 1.5, 0), Vector3(0.1, 0.5, 0)])
+	arrays[Mesh.ARRAY_NORMAL] = PackedVector3Array([Vector3.BACK, Vector3.BACK, Vector3.BACK])
+	arrays[Mesh.ARRAY_TEX_UV] = PackedVector2Array([Vector2.ZERO, Vector2.RIGHT, Vector2.DOWN])
+	arrays[Mesh.ARRAY_BONES] = PackedInt32Array([1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0])
+	arrays[Mesh.ARRAY_WEIGHTS] = PackedFloat32Array([1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0])
+	arrays[Mesh.ARRAY_INDEX] = PackedInt32Array([0, 1, 2])
+	var src := ArrayMesh.new()
+	src.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var mi := MeshInstance3D.new()
+	mi.mesh = src
+	mi.skin = skin
+	var model := Node3D.new()
+	model.add_child(sk)
+	sk.add_child(mi)
+	var gib := GSNpcGibs.limb_mesh(sk, model, 1, "selftest_limb_cut")
+	var lowest := 1.0
+	var tris := 0
+	if gib != null:
+		for v in gib.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array:
+			lowest = minf(lowest, v.y)
+		tris = (gib.surface_get_arrays(0)[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3
+	_check(gib != null and tris == 2, "limb_mesh keeps the part of a straddling triangle on the limb side", "%d triangles" % tris)
+	_check(gib != null and lowest > -0.0001, "and ends it flat at the joint plane", "lowest y %.3f" % lowest)
+	model.free()

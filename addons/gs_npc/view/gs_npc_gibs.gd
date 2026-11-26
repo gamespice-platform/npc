@@ -140,6 +140,40 @@ static func collapse_bone(sk: Skeleton3D, model: Node, root: int, grow := 2.0) -
 			_collapse_cache[entry[2]] = dst if changed else null
 
 
+## The direction a limb runs from its joint: away from its parent (the way [method spawn_gib] faces its cut), else toward its first child.
+static func limb_axis(sk: Skeleton3D, root: int) -> Vector3:
+	var here := sk.get_bone_global_rest(root).origin
+	var parent := sk.get_bone_parent(root)
+	if parent >= 0:
+		var d := here - sk.get_bone_global_rest(parent).origin
+		if d.length() > 0.001:
+			return d.normalized()
+	for i in sk.get_bone_count():
+		if sk.get_bone_parent(i) == root:
+			var d := sk.get_bone_global_rest(i).origin - here
+			if d.length() > 0.001:
+				return d.normalized()
+	return Vector3.DOWN
+
+
+## One corner of a source vertex as [position - centre, normal, uv].
+static func _corner(v: int, verts: PackedVector3Array, normals: Variant, uvs: Variant, centre: Vector3) -> Array:
+	return [verts[v] - centre, (normals as PackedVector3Array)[v] if normals is PackedVector3Array else Vector3.UP, (uvs as PackedVector2Array)[v] if uvs is PackedVector2Array else Vector2.ZERO]
+
+
+static func _emit(out: Dictionary, remap: Dictionary, v: int, verts: PackedVector3Array, normals: Variant, uvs: Variant, centre: Vector3) -> int:
+	if not remap.has(v):
+		remap[v] = _emit_new(out, _corner(v, verts, normals, uvs, centre))
+	return remap[v]
+
+
+static func _emit_new(out: Dictionary, corner: Array) -> int:
+	(out[Mesh.ARRAY_VERTEX] as Array).append(corner[0])
+	(out[Mesh.ARRAY_NORMAL] as Array).append(corner[1])
+	(out[Mesh.ARRAY_TEX_UV] as Array).append(corner[2])
+	return (out[Mesh.ARRAY_VERTEX] as Array).size() - 1
+
+
 ## The limb's triangles in skeleton space, centred on its joint, or null when it has none.
 static func limb_mesh(sk: Skeleton3D, model: Node, root: int, key: String) -> ArrayMesh:
 	# Species/limb alone would serve a variant model another model's gib.
@@ -152,6 +186,7 @@ static func limb_mesh(sk: Skeleton3D, model: Node, root: int, key: String) -> Ar
 		return _mesh_cache[key]
 	var in_limb := subtree(sk, root)
 	var centre := sk.get_bone_global_rest(root).origin
+	var axis := limb_axis(sk, root)
 	var mesh := ArrayMesh.new()
 	for m in model.find_children("*", "MeshInstance3D", true, false):
 		var mi := m as MeshInstance3D
@@ -190,18 +225,31 @@ static func limb_mesh(sk: Skeleton3D, model: Node, root: int, key: String) -> Ar
 			var normals: Variant = arrays[Mesh.ARRAY_NORMAL]
 			var uvs: Variant = arrays[Mesh.ARRAY_TEX_UV]
 			for t in range(0, tris.size() - 2, 3):
-				if not (inside[tris[t]] and inside[tris[t + 1]] and inside[tris[t + 2]]):
+				var ins := int(inside[tris[t]]) + int(inside[tris[t + 1]]) + int(inside[tris[t + 2]])
+				if ins == 0:
 					continue
+				if ins == 3:
+					for c in 3:
+						out_idx.append(_emit(out, remap, tris[t + c], verts, normals, uvs, centre))
+					continue
+				# A triangle across the limb's edge is cut at the plane through the joint, so the gib ends flat under its cut face, not in a ragged hole.
+				var poly := []
 				for c in 3:
-					var v := tris[t + c]
-					if not remap.has(v):
-						remap[v] = (out[Mesh.ARRAY_VERTEX] as Array).size()
-						(out[Mesh.ARRAY_VERTEX] as Array).append(verts[v] - centre)
-						if normals is PackedVector3Array:
-							(out[Mesh.ARRAY_NORMAL] as Array).append((normals as PackedVector3Array)[v])
-						if uvs is PackedVector2Array:
-							(out[Mesh.ARRAY_TEX_UV] as Array).append((uvs as PackedVector2Array)[v])
-					out_idx.append(remap[v])
+					var va := tris[t + c]
+					var vb := tris[t + (c + 1) % 3]
+					var da := (verts[va] - centre).dot(axis)
+					var db := (verts[vb] - centre).dot(axis)
+					if da >= 0.0:
+						poly.append(_corner(va, verts, normals, uvs, centre))
+					if (da >= 0.0) != (db >= 0.0):
+						var f := da / (da - db)
+						var ca := _corner(va, verts, normals, uvs, centre)
+						var cb := _corner(vb, verts, normals, uvs, centre)
+						var mixed := [(ca[0] as Vector3).lerp(cb[0], f), (ca[1] as Vector3).lerp(cb[1], f).normalized(), (ca[2] as Vector2).lerp(cb[2], f)]
+						poly.append(mixed)
+				for k in range(1, poly.size() - 1):
+					for corner in [poly[0], poly[k], poly[k + 1]]:
+						out_idx.append(_emit_new(out, corner))
 			if out_idx.is_empty():
 				continue
 			var a: Array = []
