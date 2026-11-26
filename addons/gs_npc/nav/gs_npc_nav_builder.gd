@@ -67,7 +67,8 @@ var _links: Array = []
 enum Phase { IDLE, FLOORS, SETS, POINTS, BUCKETS, EDGES, LINKS, COVER, DONE }
 
 ## Tasks the edge and cover passes are split across when [method step] is given no time budget.
-## One is a plain serial pass. The result is the same for any count.
+## One is a plain serial pass; below zero is one per core but one ([method GSParallel.resolve_workers]). No upper
+## limit but [member GSParallel.auto_max] on the automatic count. The result is the same for any count.
 var workers: int = 1
 
 ## Whether the build writes its own warning about links it could not place. A caller that builds on a
@@ -411,7 +412,7 @@ func _step_edges() -> void:
 		_phase = Phase.LINKS
 		return
 
-	if workers > 1 and _deadline < 0 and _edge_total >= EDGE_BATCH * 4:
+	if _worker_count() > 1 and _deadline < 0 and _edge_total >= EDGE_BATCH * 4:
 		_run_parallel(_edge_chunk, W_POINTS, W_EDGES, "edges")
 
 		if _cancelled:
@@ -502,11 +503,16 @@ func _cover_chunk(from: int, to: int) -> Variant:
 	return [normals, has]
 
 
+## [member workers] resolved: at least one, and 1 where the platform has no threads.
+func _worker_count() -> int:
+	return maxi(GSParallel.resolve_workers(workers), 1)
+
+
 ## Splits the points into [member workers] ranges of whole batches, runs [param work] on each as a
 ## [WorkerThreadPool] group task, waits, and leaves the results in [member _chunks] in range order.
 func _run_parallel(work: Callable, base: float, weight: float, stage_name: String) -> void:
 	var total := _positions.size()
-	var count := clampi(workers, 1, 32)
+	var count := _worker_count()
 	var per := int(ceil(float(total) / float(count) / float(EDGE_BATCH))) * EDGE_BATCH
 	_chunks = []
 	_chunks.resize(count)
@@ -674,7 +680,7 @@ func _step_cover() -> void:
 	if _cover_cells.is_empty() and not _obstacles.is_empty():
 		_cover_cells = GSNpcNavIndex.index_cover(_obstacles, cover_range)
 
-	if workers > 1 and _deadline < 0 and total >= EDGE_BATCH * 4:
+	if _worker_count() > 1 and _deadline < 0 and total >= EDGE_BATCH * 4:
 		_run_parallel(_cover_chunk, W_POINTS + W_EDGES + W_LINKS, W_COVER, "cover")
 
 		if _cancelled:
