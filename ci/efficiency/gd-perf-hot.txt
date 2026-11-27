@@ -8,3 +8,5 @@ addons/gs_npc/nav/gs_npc_nav_index.gd
 addons/gs_npc/nav/gs_npc_nav_line.gd
 addons/gs_npc/nav/gs_npc_nav_filter.gd
 addons/gs_npc/net/*.gd
+# Run once (cvar/spec tables, config parsing, save/restore, descriptions), not per tick:
+cold+: ^(from_.*|describe.*|specs|cvar_specs|_absorb_specs|set_cvar|follow_cvars|validate.*|presets|properties|standard_pair|restore|_restore_.*|to_config|parse_.*|_parse_.*|find_spot)$

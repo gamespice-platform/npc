@@ -98,6 +98,10 @@ func _give_back() -> void:
 			(npc.brain as GSNpcBrain)._pace_give(int(r[0]), r[1], int(r[2]))
 
 
+## The argument list of a no-argument pacer call, shared so a tick allocates none.
+const _NO_ARGS: Array = []
+
+
 # One call on the pacer, checked against the twin in verify mode (bit for bit).
 func _c(method: StringName, args: Array) -> Variant:
 	var got: Variant = _pacer.callv(method, args)
@@ -168,7 +172,7 @@ func changed(npc: GSNpcInstance, retake: bool = false) -> void:
 	if want == (r[3] != 0.0) and not (want and retake):
 		return
 
-	var looping: bool = _c(&"looping", [])
+	var looping: bool = _c(&"looping", _NO_ARGS)
 
 	if looping and id == _cur:
 		_cur_changed = true
@@ -194,7 +198,7 @@ func every(npc: GSNpcInstance, n: int) -> void:
 	if id == _cur:
 		return
 
-	var looping: bool = _c(&"looping", [])
+	var looping: bool = _c(&"looping", _NO_ARGS)
 
 	if looping:
 		_commit_before()
@@ -213,7 +217,7 @@ func _commit_before() -> void:
 
 func _reread() -> void:
 	_due = _c(&"due_after", [_cur])
-	_owe = _c(&"owed", [])
+	_owe = _c(&"owed", _NO_ARGS)
 	_q = 0
 
 
@@ -229,7 +233,7 @@ func think(delta: float, split: Array, gathered: Array) -> void:
 		return
 
 	_due = _c(&"advance", [delta])
-	_owe = _c(&"owed", [])
+	_owe = _c(&"owed", _NO_ARGS)
 	_q = 0
 	_thought = PackedInt64Array()
 	_everies = PackedInt64Array()
