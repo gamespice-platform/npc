@@ -2,7 +2,7 @@
 
 Computer-controlled characters for a Godot 4 game. GameSpice NPC gives you a catalogue of NPC definitions, a population budget that keeps a server alive, perception that sticks to one target instead of flickering between two, and navigation generated from the constants a code-built map was drawn from. It needs only [GameSpice Core](https://github.com/gamespice-platform/core). Part of TMC's open source [**GameSpice**](https://gamespice.net) collection (MIT licence).
 
-> Built with Claude Code. Every addon has a headless test suite and the suites pass, but little of this has met real players yet. Please report rough edges.
+> A [GameSpice](https://gamespice.net) addon under MIT, built with Claude Code. The headless suite is `examples/npc_selftest.tscn`. The games in [Zee's Games](https://zeesgames.com) are built on the GameSpice addons and run on live servers, and the ones with bots or monsters use this for them.
 
 ## The server owns every NPC
 
@@ -123,6 +123,22 @@ timeout 120 godot --headless --path . res://examples/npc_selftest.tscn
 ```
 
 Exits non-zero on failure.
+
+## Used by
+
+These games include it:
+
+- [Fatal Contact](https://zeesgames.com/fatal-contact)
+- [Airdrift](https://zeesgames.com/airdrift)
+- [Playlot](https://zeesgames.com/playlot)
+- [Hungario](https://zeesgames.com/hungario)
+- [Zombie Zone](https://zeesgames.com/zombie-zone)
+- [Hide n Seek](https://zeesgames.com/hide-n-seek)
+- [Prop Hunt](https://zeesgames.com/prop-hunt)
+- [Murder Mystery](https://zeesgames.com/murder-mystery)
+- [Deathrun](https://zeesgames.com/deathrun)
+
+The whole collection is at [zeesgames.com](https://zeesgames.com).
 
 ## Licence
 
