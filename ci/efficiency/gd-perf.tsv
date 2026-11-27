@@ -10,7 +10,6 @@ addons/gs_npc/nav/gs_npc_nav_graph.gd::_apply_bad::alloc	1
 addons/gs_npc/nav/gs_npc_nav_graph.gd::_apply_bad::untyped_array	1
 addons/gs_npc/nav/gs_npc_nav_graph.gd::_label_components::alloc	1
 addons/gs_npc/nav/gs_npc_nav_graph.gd::_native_copies::alloc	2
-addons/gs_npc/nav/gs_npc_nav_graph.gd::_native_copies::dynamic_call	1
 addons/gs_npc/nav/gs_npc_nav_graph.gd::_native_copies::untyped_array	3
 addons/gs_npc/nav/gs_npc_nav_graph.gd::_native_key::string_build	2
 addons/gs_npc/nav/gs_npc_nav_graph.gd::_plan_script::untyped_array	1
@@ -44,7 +43,6 @@ addons/gs_npc/runtime/gs_npc_brain.gd::steer_along_path::dynamic_call	2
 addons/gs_npc/runtime/gs_npc_brain.gd::target_position::dynamic_call	2
 addons/gs_npc/runtime/gs_npc_brain.gd::tune_string::string_build	1
 addons/gs_npc/runtime/gs_npc_limbs.gd::<members>::untyped_array	4
-addons/gs_npc/runtime/gs_npc_limbs.gd::_add_tip::dynamic_call	1
 addons/gs_npc/runtime/gs_npc_limbs.gd::_add_tip::untyped_array	1
 addons/gs_npc/runtime/gs_npc_limbs.gd::_distance::untyped_array	1
 addons/gs_npc/runtime/gs_npc_limbs.gd::attack_scale::dynamic_call	1
@@ -54,10 +52,9 @@ addons/gs_npc/runtime/gs_npc_limbs.gd::defs_from_config::untyped_array	1
 addons/gs_npc/runtime/gs_npc_limbs.gd::describe::untyped_array	1
 addons/gs_npc/runtime/gs_npc_limbs.gd::hit_limb::dynamic_call	1
 addons/gs_npc/runtime/gs_npc_limbs.gd::is_lethal::dynamic_call	1
-addons/gs_npc/runtime/gs_npc_limbs.gd::limb_at::dynamic_call	1
 addons/gs_npc/runtime/gs_npc_limbs.gd::limb_names::untyped_array	1
 addons/gs_npc/runtime/gs_npc_limbs.gd::points_of::alloc	3
-addons/gs_npc/runtime/gs_npc_limbs.gd::points_of::dynamic_call	2
+addons/gs_npc/runtime/gs_npc_limbs.gd::points_of::dynamic_call	1
 addons/gs_npc/runtime/gs_npc_limbs.gd::points_of::string_build	2
 addons/gs_npc/runtime/gs_npc_limbs.gd::points_of::untyped_array	2
 addons/gs_npc/runtime/gs_npc_limbs.gd::rest_points::alloc	3
