@@ -69,6 +69,9 @@ const NATIVE_CLASS := &"GSSimSenses"
 
 var _native: Object = null
 var _ray := PhysicsRayQueryParameters3D.new()
+## The ray's exclusion lists, reused (the setter copies them, so no Array is built per cast).
+var _ray_self: Array[RID] = [RID()]
+var _ray_none: Array[RID] = []
 var _blockers: Array = []
 var _next_blocker: int = 1
 
@@ -183,9 +186,10 @@ func _has_line_of_sight(npc: GSNpcInstance, cand: Candidate) -> bool:
 	# By RID, which is what `exclude` takes; a body that is not a CollisionObject3D is not in
 	# the physics world, so it needs no exclusion.
 	if npc.node is CollisionObject3D:
-		_ray.exclude = [(npc.node as CollisionObject3D).get_rid()]
+		_ray_self[0] = (npc.node as CollisionObject3D).get_rid()
+		_ray.exclude = _ray_self
 	elif not _ray.exclude.is_empty():
-		_ray.exclude = []
+		_ray.exclude = _ray_none
 
 	return world.direct_space_state.intersect_ray(_ray).is_empty()
 
